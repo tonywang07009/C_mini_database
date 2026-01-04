@@ -1,0 +1,28 @@
+
+
+
+
+git stash               # 把目前修改暫存起來，工作目錄變乾淨
+git pull                # 先拉最新
+git stash pop           # 把剛剛的變更套回來（可能會出現衝突，再解）
+git restore Basic_Function/list/list_API.h
+# 或舊版 Git:
+# git checkout -- Basic_Function/list/list_API.h
+git pull
+
+
+加分項
+支援互動式遞迴刪除（rm -r 型）
+
+static void print_prompt(void) {
+    // 先組出從 root 到 g_cwd 的路徑（簡化版，只顯示當前目錄名）
+    const char *dirname = g_cwd->name;   // root 時是 "/"
+
+    // 如果是 root：TONY_FS:/
+    // 其他目錄：   TONY_FS:dirname*
+    if (g_cwd == g_root) {
+        printf("TONY_FS:/ > ");
+    } else {
+        printf("TONY_FS:%s* > ", dirname);
+    }
+}

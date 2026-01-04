@@ -5,37 +5,37 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <inttypes.h>  // for into the uint64_t
+#include <inttypes.h> // for into the uint64_t
 
 typedef enum NodeType
 {
     NODE_FILE,
     NODE_DIR
 
-}NodeType;
+} NodeType;
 
 /*for connet file and cloumn*/
 typedef struct Node
 {
-    char name [512];
+    char name[512];
     NodeType type;
-    struct Node* parent; // Father node
-    struct Node* child;  // The child node
-    struct Node* sibling; //your next brother node
+    struct Node *parent;  // Father node
+    struct Node *child;   // The child node
+    struct Node *sibling; // your next brother node
     /*This is extent space*/
-}Node;
-
+} Node;
 
 /*function list*/
 
 // Remeber .c inside define
-extern Node* g_root; //The extern is golobal var 
-                     //The queue management
-extern Node* g_cwd;  // The child node
+extern Node *g_root; // The extern is golobal var
+                     // The queue management
+extern Node *g_cwd;  // The child node
 
 void file_sys_init(void);
-int file_sys_mkdir(const char* name);
-int file_sys_ls(Node* nowdir);
+int file_sys_mkdir(const char *name);
+int file_sys_ls(Node *nowdir);
 int file_sys_cd(const char *path);
+int file_sys_rmdir(const char *path);
 
 #endif
