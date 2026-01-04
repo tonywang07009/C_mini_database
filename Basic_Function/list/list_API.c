@@ -22,13 +22,15 @@ void file_sys_init(void)
 
 int file_sys_mkdir(const char* name)
 {
-      if (!name || !*name) {
+    if (!name || !*name) // name pointer address *name -> content 
+    {
         printf("Invalid directory name.\n");
         return -1;
     }
 
     Node *new_node = malloc(sizeof(Node));
-    if (!new_node) {
+    if (!new_node) 
+    {
         printf("The mkdir create fail.\n");
         return -1;
     }
@@ -41,7 +43,7 @@ int file_sys_mkdir(const char* name)
     new_node->child   = NULL;
     new_node->sibling = NULL;
 
-    // 掛到 g_cwd 的 children/sibling 鏈上
+    // handon the child chain
     if (g_cwd->child == NULL) 
     {
         g_cwd->child = new_node;
@@ -58,4 +60,25 @@ int file_sys_mkdir(const char* name)
     }
 
     return 0;
+}
+
+int file_sys_ls(Node* nowdir)
+{
+    if (nowdir==NULL)
+    {
+       printf("fail_dir.\n");
+       return -1;
+    }
+
+    Node* current = nowdir->child; // print the layer all child node
+
+    while (current !=NULL)
+    {
+        printf("%s " , current -> name);
+        current = current->sibling;
+    }
+
+    printf("\n");
+    return 0;
+
 }

@@ -1,15 +1,19 @@
 #include "CLi_API.h"
 
+
+static void command_loop(void);
+
 int cli(void)
 {
     while (1)
     {
         char option_buffer[256]; // The max you car read char.
         int option = 0;
-    
-        char partition_option_buffer[256];
-        uint64_t partition_size = 0;    
 
+        
+        char partition_option_buffer[256];
+        uint64_t partition_size = 0;   
+        
         /*Step 1 The basic function choose*/
         printf("\n  ==== WELCOME TO TONY_CLI ===== \n");
         printf("Choose the options please. \n");
@@ -36,22 +40,34 @@ int cli(void)
             break;
         
         case 2: /*Step 2 Specify the partition size */
+           
             printf ("\n Input size of a new partition : ");
             if(!fgets(partition_option_buffer,sizeof(partition_option_buffer),stdin)) // duplicatipn The  
             {
                 printf("Input error.\n");
                 continue; 
             }
-
             if(sscanf(partition_option_buffer,"%" SCNu64 , & partition_size)!= 1 )
             {
                 printf("Invalid input.\n");
                 printf("ReSpecify again please\n");
-                continue;
-                
+                continue;         
             }
 
-            printf("test : partition_size display = %"PRIu64"\n",partition_size); 
+                printf("test mkdir \n");
+                if (file_sys_mkdir("test_dir") != 0) 
+                {
+                    printf("mkdir test_dir failed\n");
+                } 
+                else 
+                {
+                    printf("mkdir test_dir success\n");
+                }
+                printf("testcommand_loop \n");
+                command_loop(); 
+                printf("Make new partition successful!\n");
+                
+
             break;
         // case 3: // system info display
 
@@ -66,6 +82,64 @@ int cli(void)
     }
     return 0;
 }
+
+static void command_loop(void) // The init_CLI
+{
+    // char specfy_name [20] = {'\0'};
+    char line [MAX_CMD] = {'\0'};
+
+    while (1)
+    {
+        printf("TONY_File_system > "); 
+
+        if (!fgets(line, sizeof(line), stdin)) 
+        {
+            printf("Input error.\n");
+            break;
+        }
+
+        // Del \n
+        line[strcspn(line, "\n")] = '\0'; //del '\n';
+
+        // jump the space 
+        if(line[0] == '\0')
+        {
+            continue;
+        }
+
+        // The reading strtok // RD* 
+        char *cmd = strtok(line, " ");
+        char *arg = strtok(NULL, " ");
+
+        if (strcmp(cmd, "exit") == 0) 
+        {
+                break;
+        } 
+
+        else if (strcmp(cmd, "mkdir") == 0) 
+        {
+            if (!arg) 
+            {
+                printf("usage: mkdir <name>\n");
+                continue;
+            }   
+            if(file_sys_mkdir(arg) != 0) 
+            {
+                printf("mkdir failed.\n");
+            }
+            else 
+            {
+                printf("Unknown command: %s\n", cmd);
+            }       
+        }
+        else if (strcmp(cmd , "ls") ==0)
+        {
+            file_sys_ls(g_cwd); // extern varable.   
+        }
+    }
+}
+
+
 
 void cli_expection_handle(int cli_result)
 {

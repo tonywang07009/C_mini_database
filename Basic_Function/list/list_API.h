@@ -35,4 +35,6 @@ extern Node* g_cwd;  // The child node
 
 void file_sys_init(void);
 int file_sys_mkdir(const char* name);
+int file_sys_ls(Node* nowdir);
+
 #endif

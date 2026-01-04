@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include <inttypes.h>  // for into the uint64_t
 
+#define MAX_CMD 512
+
+
 #include "../Basic_Function/list/list_API.h"
 
 /*function list*/
