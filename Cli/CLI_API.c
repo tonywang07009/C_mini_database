@@ -108,9 +108,10 @@ static void command_loop(void) // The init_CLI
         }
 
         // The reading strtok // RD* 
-        char *cmd = strtok(line, " ");
-        char *arg = strtok(NULL, " ");
+        char* cmd = strtok(line, " "); // line find the first 
+        char* arg = strtok(NULL, " "); //arg RD
 
+        /*改函式指標*/
         if (strcmp(cmd, "exit") == 0) 
         {
                 break;
@@ -135,6 +136,19 @@ static void command_loop(void) // The init_CLI
         else if (strcmp(cmd , "ls") ==0)
         {
             file_sys_ls(g_cwd); // extern varable.   
+        }
+
+        else if (strcmp(cmd, "cd") ==0)
+        {
+               if (!arg) 
+                {
+                    printf("usage: cd <path>\n");
+                    continue;
+                }
+                if (file_sys_cd(arg) != 0) 
+                {
+                    printf("cd: no such directory: %s\n", arg);
+                }
         }
     }
 }
