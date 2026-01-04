@@ -17,7 +17,7 @@ void file_sys_init(void)
     g_root->parent = NULL;
     g_root->child = NULL;
     g_root->sibling = NULL;
-    g_cwd = g_root;
+    g_cwd = g_root; // now i'm staying node
 }
 
 int file_sys_mkdir(const char* name)
@@ -36,7 +36,7 @@ int file_sys_mkdir(const char* name)
     }
 
     // init_newnode
-    strncpy(new_node->name, name, (sizeof(new_node->name) - 1));
+    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); // The name dupilcation
     new_node->name[sizeof(new_node->name) - 1] = '\0'; // The end symbol
     new_node->type    = NODE_DIR;
     new_node->parent  = g_cwd;
@@ -58,7 +58,6 @@ int file_sys_mkdir(const char* name)
         
         current->sibling = new_node; // now dir next build the new one
     }
-
     return 0;
 }
 
@@ -71,14 +70,47 @@ int file_sys_ls(Node* nowdir)
     }
 
     Node* current = nowdir->child; // print the layer all child node
-
     while (current !=NULL)
     {
         printf("%s " , current -> name);
         current = current->sibling;
     }
-
     printf("\n");
     return 0;
+}
 
+int file_sys_cd(const char* path)
+{
+    /*cd ".." */
+    if(strcmp(path,"..")==0)
+    {
+       if(g_cwd->parent)
+       {
+            g_cwd = g_cwd->parent ;
+       } 
+       return 0;
+    }
+
+    /* cd "/" */
+    if(strcmp(path ,"/") ==0) // strcmp 比較字串內容是否相同
+    {
+        g_cwd = g_root;
+        return 0;
+    }
+    
+    /* cd "name" */
+    Node* current = g_cwd->child;
+    while (current != NULL)
+    {
+        if (current->type == NODE_DIR && strcmp(current->name, path) == 0) 
+        {
+            g_cwd = current;
+            return 0;
+        }
+        current = current->sibling;
+
+    }
+    
+    return -1; // can find't it
+    
 }
