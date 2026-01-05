@@ -2,7 +2,7 @@
 
 static void command_loop(void);
 
-int cli(void) // 這邊要修
+int cli(void) // 這邊要修 內容
 {
     while (1)
     {
@@ -13,7 +13,7 @@ int cli(void) // 這邊要修
         uint64_t partition_size = 0;
 
         /*Step 1 The basic function choose*/
-        printf("\n  ==== WELCOME TO TONY_CLI ===== \n");
+        printf("\n  ==== WELCOME TO TONY_File_system ===== \n");
         printf("Choose the options please. \n");
         printf("Options : \n 1) lodas from file\n 2) create new partition in memory \n");
         printf("your option : ");
@@ -33,7 +33,7 @@ int cli(void) // 這邊要修
 
         {
         case 1:
-            // The file_system_function;
+                // The file_system_function;
 
             break;
 
@@ -53,16 +53,7 @@ int cli(void) // 這邊要修
                 continue;
             }
 
-            printf("test mkdir \n");
-            if (file_sys_mkdir("test_dir") != 0)
-            {
-                printf("mkdir test_dir failed\n");
-            }
-            else
-            {
-                printf("mkdir test_dir success\n");
-            }
-            printf("testcommand_loop \n");
+            printf(" into the CLI \n");
             command_loop();
             printf("Make new partition successful!\n");
 
@@ -121,13 +112,13 @@ static void command_loop(void) // The init_CLI
                 printf("usage: mkdir <name>\n");
                 continue;
             }
-            if (file_sys_mkdir(arg) != 0)
+            else if (file_sys_mkdir(arg) != 0)
             {
                 printf("mkdir failed.\n");
             }
             else
             {
-                printf("Unknown command: %s\n", cmd);
+                printf("mkdir: sucess.");
             }
         }
         else if (strcmp(cmd, "ls") == 0)
@@ -159,6 +150,19 @@ static void command_loop(void) // The init_CLI
             if (file_sys_rmdir(arg) != 0)
             {
                 printf("rmdir : no such directory: %s \n", arg);
+            }
+        }
+        else if (strcmp(cmd, "touch") == 0)
+        {
+            if (!arg)
+            {
+                printf("usage: touch <name>");
+                continue;
+            }
+
+            if (file_sys_touch(arg) != 0)
+            {
+                printf("touch : failed to create : %s \n", arg);
             }
         }
     }
