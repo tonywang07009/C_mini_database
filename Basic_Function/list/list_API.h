@@ -22,8 +22,18 @@ typedef struct Node
     struct Node *parent;  // Father node
     struct Node *child;   // The child node
     struct Node *sibling; // your next brother node
+    struct FileMeta* file; // The type == node file
     /*This is extent space*/
 } Node;
+
+typedef struct FileMeta  //Meta :元
+{
+    char* name;
+    int size;
+    unsigned char Encrypt; // Futer work "the aes add"
+    char* content; //for dump and load
+
+} FileMeta;
 
 /*function list*/
 
@@ -37,5 +47,10 @@ int file_sys_mkdir(const char *name);
 int file_sys_ls(Node *nowdir);
 int file_sys_cd(const char *path);
 int file_sys_rmdir(const char *path);
+int file_sys_touch(const char *name);
+int file_sys_put(const char *path ,const char *file_name);
+int file_sys_get(const char* file_name, const char* path);
+
+
 
 #endif

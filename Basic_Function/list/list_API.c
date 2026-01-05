@@ -3,6 +3,7 @@
 Node *g_root = NULL; // define for here
 Node *g_cwd = NULL;
 
+
 void file_sys_init(void)
 {
     g_root = (Node *)malloc(sizeof(Node));
@@ -19,6 +20,7 @@ void file_sys_init(void)
     g_root->sibling = NULL;
     g_cwd = g_root; // now i'm staying node
 }
+
 
 int file_sys_mkdir(const char *name)
 {
@@ -79,6 +81,7 @@ int file_sys_ls(Node *nowdir)
     return 0;
 }
 
+
 int file_sys_cd(const char *path)
 {
     /*cd ".." */
@@ -112,6 +115,8 @@ int file_sys_cd(const char *path)
 
     return -1; // can find't it
 }
+
+
 
 int file_sys_rmdir(const char *path)
 {
@@ -152,3 +157,64 @@ int file_sys_rmdir(const char *path)
     free(current);
     return 0;
 }
+
+
+
+int file_sys_touch(const char *name)
+{
+    
+    if (!name || !*name) // name pointer address *name -> content
+    {
+        printf("Invalid file name.\n");
+        return -1;
+    }
+
+    Node *new_node = malloc(sizeof(Node));
+    if (!new_node)
+    {
+        printf("The touch create file fail.\n");
+        return -1;
+    }
+
+    // init_newnode
+    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); // The name dupilcation
+    new_node->name[sizeof(new_node->name) - 1] = '\0';           // The end symbol
+    new_node->type = NODE_FILE;
+    new_node->parent = g_cwd;
+    new_node->child = NULL;
+    new_node->sibling = NULL;
+
+    if(new_node->type == NODE_FILE)
+    {
+        FileMeta* file = (FileMeta*)malloc(sizeof(FileMeta));
+        if(file == NULL)
+        {
+            printf("file node create fail.\n");
+            return -1;
+        }
+        new_node->file = file;
+        new_node->file->content =NULL;
+        new_node->file->Encrypt= 0;
+        new_node->file->name = NULL;
+        new_node->file->size=0;
+    }
+
+    // handon the child chain
+    if (g_cwd->child == NULL)
+    {
+        g_cwd->child = new_node;
+    }
+    else
+    {
+        Node *current = g_cwd->child;
+        while (current->sibling != NULL) // The mkdir like samnode build tree.
+        {
+            current = current->sibling;
+        }
+
+        current->sibling = new_node; // now dir next build the new one
+    }
+    return 0;
+}
+
+
