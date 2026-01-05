@@ -33,7 +33,8 @@ int cli(void) // 這邊要修 內容
 
         {
         case 1:
-                // The file_system_function;
+                
+            file_sys_load("test.img");
 
             break;
 
@@ -165,6 +166,107 @@ static void command_loop(void) // The init_CLI
                 printf("touch : failed to create : %s \n", arg);
             }
         }
+
+        else if (strcmp(cmd, "rm") == 0)
+        {
+            if(!arg)
+            {
+                printf("usage: rm <name>");
+                continue;
+            }
+        
+            if (file_sys_rm(arg) != 0)
+            {
+                printf("rm : failed to del : %s \n", arg);
+            }
+        }
+        
+        else if (strcmp(cmd, "dump") == 0)
+        {
+            if(!arg)
+            {
+                printf("usage: dump <file> \n");
+                continue;
+            }
+            FILE *fp = fopen(arg,"w");
+            if (fp == NULL)
+            {
+                    printf("dump: cannot open %s\n", arg);
+                    continue;
+            }
+            
+            file_dump_dfs(g_root,"",fp);
+            fclose(fp); // close file
+        }
+                else if (strcmp(cmd, "put") == 0)
+        {
+            char *fs_file  = strtok(NULL, " "); // 第 2 個參數
+            char *password = strtok(NULL, " "); // 第 3 個參數
+
+            if (!arg || !fs_file)
+            {
+                printf("usage: put <host_path> <fs_file> <password>\n");
+                continue;
+            }
+
+            if (file_sys_put(arg, fs_file, password) != 0)
+            {
+                printf("put: failed\n");
+            }
+        }
+        else if (strcmp(cmd, "get") == 0)
+        {
+            char *host_path = strtok(NULL, " "); // 第 2 個參數
+            char *password  = strtok(NULL, " "); // 第 3 個參數
+
+            if (!arg || !host_path)
+            {
+                printf("usage: get <fs_file> <host_path> <password>\n");
+                continue;
+            }
+
+            if (file_sys_get(arg, host_path, password) != 0)
+            {
+                printf("get: failed\n");
+            }
+        }
+        else if (strcmp(cmd, "cat") == 0)
+        {
+            char *password = strtok(NULL, " "); // 第 2 個參數
+
+            if (!arg)
+            {
+                printf("usage: cat <fs_file> <password>\n");
+                continue;
+            }
+
+            if (file_sys_cat(arg, password) != 0)
+            {
+                printf("cat: failed\n");
+            }
+        }
+        else if (strcmp(cmd, "help") == 0)
+        {
+            printf("\n==== Commands ====\n");
+            printf("mkdir <name>                    - create directory\n");
+            printf("rmdir <name>                    - remove directory\n");
+            printf("ls                              - list entries\n");
+            printf("cd <path>                       - change directory\n");
+            printf("touch <name>                    - create empty file\n");
+            printf("rm <name>                       - remove file\n");
+            printf("put <host_path> <fs_file> <pw>  - upload & encrypt file\n");
+            printf("get <fs_file> <host_path> <pw>  - decrypt & download file\n");
+            printf("cat <fs_file> <pw>              - decrypt & show content\n");
+            printf("dump <file>                     - dump file system\n");
+            printf("exit                            - exit cli\n");
+            printf("==================\n");
+        }
+        else
+        {
+            printf("Unknown command, type 'help'\n");
+        }
+
+
     }
 }
 void cli_expection_handle(int cli_result)

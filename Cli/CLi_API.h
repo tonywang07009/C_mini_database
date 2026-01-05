@@ -3,6 +3,7 @@
 
 #include <stdio.h> //fgets
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <inttypes.h>  // for into the uint64_t
 

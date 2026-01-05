@@ -28,9 +28,10 @@ typedef struct Node
 
 typedef struct FileMeta  //Meta :元
 {
-    char* name;
     int size;
     unsigned char Encrypt; // Futer work "the aes add"
+    uint8_t key;             // for XOR encryption
+    // char password_hash[128];
     char* content; //for dump and load
 
 } FileMeta;
@@ -43,14 +44,23 @@ extern Node *g_root; // The extern is golobal var
 extern Node *g_cwd;  // The child node
 
 void file_sys_init(void);
+
 int file_sys_mkdir(const char *name);
 int file_sys_ls(Node *nowdir);
 int file_sys_cd(const char *path);
 int file_sys_rmdir(const char *path);
+int file_sys_rm(const char *name);
 int file_sys_touch(const char *name);
-int file_sys_put(const char *path ,const char *file_name);
-int file_sys_get(const char* file_name, const char* path);
+int file_sys_put(const char *path ,const char *file_name , const char *password);
+int file_sys_get(const char* file_name, const char* path , const char *password);
+int file_sys_cat(const char *file_name, const char *password);
+int file_sys_load(const char* dump_file);
+
+void file_dump_dfs(Node* node , const char* parent_path ,FILE *fp);
 
 
+// helper function
+uint8_t derive_key(const char *password);
+void xor_buffer(char *buf, int size, uint8_t key);
 
 #endif
