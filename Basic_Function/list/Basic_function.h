@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <inttypes.h> // for into the uint64_t
 
+#include "../../Common_Function/Common_function.h"
+
 typedef enum NodeType
 {
     NODE_FILE,
@@ -51,13 +53,13 @@ int file_sys_cd(const char *path);
 int file_sys_rmdir(const char *path);
 int file_sys_rm(const char *name);
 int file_sys_touch(const char *name);
-int file_sys_put(const char *path ,const char *file_name , const char *password);
-int file_sys_get(const char* file_name, const char* path , const char *password);
+int file_sys_put(const char* file_path, const char* dst_path);
+int file_sys_get(const char *file_name, const char *password , uint8_t** out_buffer, size_t* out_size);
 int file_sys_cat(const char *file_name, const char *password);
 int file_sys_load(const char* dump_file);
 void file_sys_state(void);
 void file_dump_dfs(Node* node , const char* parent_path ,FILE *fp);
-
+void file_rule_display(const char* path_display_buffer , const Node* current_dir);
 
 // helper function
 uint8_t derive_key(const char *password);

@@ -9,7 +9,7 @@
 
 #define MAX_CMD 512
 
-
+#include "../Common_Function/Common_function.h"
 #include "../Basic_Function/list/Basic_function.h"
 
 /*function list*/

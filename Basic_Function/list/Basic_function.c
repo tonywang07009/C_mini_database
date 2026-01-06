@@ -16,6 +16,7 @@ Node *g_cwd = NULL;
 /* file system initize. */
 void file_sys_init(void)
 {
+    char path_display_buffer[1024] = {0};
 
     g_root = (Node *)malloc(sizeof(Node)); // The root node create.
     if (g_root == NULL)
@@ -211,7 +212,7 @@ int file_sys_rm(const char *file_name)
 
     while (current_file != NULL)
     {
-        if (current_file->type == NODE_FILE && strcmp(current_file->file, file_name) == 0)
+        if (current_file->type == NODE_FILE && strcmp(current_file->name, file_name) == 0)
         {
             break; // the find del file
         }
@@ -381,7 +382,9 @@ int file_sys_load(const char *dump_file)
         char type = '0'; // The type secify
         char path[1024] = {0};
 
-        /* sscanf to path buffer inside*/
+        /* sscanf to path buffer inside
+           used the indivual space to hadle the role token cut
+        */
         if (sscanf(line, " %c %1023s", &type, path) != 2)
         {
             continue;
@@ -428,7 +431,7 @@ int file_sys_load(const char *dump_file)
                     if (current->type == NODE_DIR &&
                         strcmp(current->name, token) == 0)
                     {
-                        found = current; //
+                        found = current; // find the same dirteoryname
                         break;
                     }
 
@@ -483,30 +486,39 @@ int file_sys_load(const char *dump_file)
 
             char *last_slash = strrchr(tmpPtr, '/');
             /*find the last time appear sepcy char.
+              The search directory is right to left
+
+              ---
+
+              tmpPtr is pointer to mine space
+              '/' is mine target char
 
             */
             char *filename = NULL;
 
-            if (last_slash)
+            if (last_slash!=NULL)
             {
-                *last_slash = '\0';
-                filename = last_slash + 1;
-            }
-            else
-            {
-                filename = tmpPtr;
-                tmpPtr = NULL;
+                
+                *last_slash = '\0';        // find the target add the endsymbol
+                filename = last_slash + 1; // To pointer the first file name.
             }
 
-            if (tmpPtr && *tmpPtr != '\0')
+            else
             {
-                char *token = strtok(tmpPtr, "/");
+                filename = tmpPtr; // The tmpPtr repointer to origin tmp array
+                tmpPtr = NULL;
+            }
+            
+            if (tmpPtr!=NULL && *tmpPtr != '\0')
+            {
+                char *token = strtok(tmpPtr, "/"); //Token 
                 while (token != NULL)
                 {
-                    // find the same name clumn
+                    
                     Node *current = g_cwd->child;
                     Node *found = NULL;
 
+                    /*The dirtery find*/
                     while (current != NULL)
                     {
                         if (current->type == NODE_DIR &&
@@ -516,10 +528,10 @@ int file_sys_load(const char *dump_file)
                             break;
                         }
 
-                        current = current->sibling; // 這行別忘記
+                        current = current->sibling; 
                     }
 
-                    if (!found)
+                    if (found==NULL)
                     {
                         // no find do the mkdir new one
                         if (file_sys_mkdir(token) != 0)
@@ -528,20 +540,23 @@ int file_sys_load(const char *dump_file)
                             break;
                         }
 
-                        current = g_cwd->child;
+                        current = g_cwd->child; // repointer to childnode
                         while (current->sibling != NULL)
                         {
                             current = current->sibling;
                         }
 
                         found = current;
+
                     }
-                    // into this clumn
+
+                    // Prepare the next token cut
                     g_cwd = found;
                     token = strtok(NULL, "/");
                 }
             }
 
+            /*create the dumpfile*/
             file_sys_touch(filename);
             g_cwd = saved_cwd;
         }
@@ -551,6 +566,7 @@ int file_sys_load(const char *dump_file)
     return 0;
 }
 
+/*The Product the key*/
 uint8_t derive_key(const char *password)
 {
     if (!password || !*password)
@@ -568,6 +584,7 @@ uint8_t derive_key(const char *password)
     return key ? key : 0x5A; // avoid key = 0
 }
 
+/*The Encrepty Decrtpty key*/
 void xor_buffer(char *buf, int size, uint8_t key)
 {
     if (!buf || size <= 0)
@@ -581,21 +598,23 @@ void xor_buffer(char *buf, int size, uint8_t key)
     }
 }
 
-int file_sys_put(const char *path, const char *file_name, const char *password)
+/*The put file function*/
+int file_sys_put(const char* file_name, const char* dst_path)
 {
-    if (!path || !*path || !file_name || !*file_name)
+    if (!file_name || !*file_name || !dst_path || !*dst_path)
     {
-        printf("Invalid path or filename.\n");
+        printf("Invalid file_name or filename.\n");
         return -1;
     }
 
-    // Step 1: find or create file node
+    /*step 1 Pointer the now current*/
     Node *target = NULL;
     Node *current = g_cwd->child;
 
+    /*Find the target path*/
     while (current != NULL)
     {
-        if (current->type == NODE_FILE && strcmp(current->name, file_name) == 0)
+        if (current->type == NODE_FILE && strcmp(current->name, dst_path) == 0)
         {
             target = current;
             break;
@@ -606,17 +625,17 @@ int file_sys_put(const char *path, const char *file_name, const char *password)
     // if not found, create new file
     if (target == NULL)
     {
-        if (file_sys_touch(file_name) != 0)
+        if (file_sys_touch(dst_path) != 0)
         {
-            printf("put: failed to create file %s\n", file_name);
+            printf("put: failed to create file %s\n", dst_path);
             return -1;
         }
 
-        // find the new created file
+         /*Find the target path again*/
         current = g_cwd->child;
         while (current != NULL)
         {
-            if (current->type == NODE_FILE && strcmp(current->name, file_name) == 0)
+            if (current->type == NODE_FILE && strcmp(current->name, dst_path) == 0)
             {
                 target = current;
                 break;
@@ -631,17 +650,21 @@ int file_sys_put(const char *path, const char *file_name, const char *password)
         return -1;
     }
 
-    // Step 2: read file content from host path
-    FILE *fp = fopen(path, "rb");
-    if (!fp)
+    // Step 2: read file content from file_name
+    FILE *fp = fopen(file_name, "rb");
+
+    if (fp==NULL)
     {
-        printf("put: cannot open file %s\n", path);
+        printf("put: cannot open file %s\n", file_name);
         return -1;
     }
 
-    // get file size
+    /* get the file size*/
+    /* RD */
     fseek(fp, 0, SEEK_END);
+    
     long file_size = ftell(fp);
+
     fseek(fp, 0, SEEK_SET);
 
     if (file_size <= 0)
@@ -651,13 +674,13 @@ int file_sys_put(const char *path, const char *file_name, const char *password)
         return -1;
     }
 
-    // free old content if exists
+    /* Free old file content*/
     if (target->file->content != NULL)
     {
         free(target->file->content);
     }
 
-    // allocate new buffer
+    /* Allow the new file buffer  for duplication*/
     target->file->content = (char *)malloc(file_size);
     if (!target->file->content)
     {
@@ -666,7 +689,7 @@ int file_sys_put(const char *path, const char *file_name, const char *password)
         return -1;
     }
 
-    // read content
+    /* Read content join the file content*/
     size_t read_size = fread(target->file->content, 1, file_size, fp);
     fclose(fp);
 
@@ -678,29 +701,64 @@ int file_sys_put(const char *path, const char *file_name, const char *password)
         return -1;
     }
 
+    /* Join the file size content */
     target->file->size = file_size;
 
-    // Step 3: encrypt if password provided
-    if (password && *password)
+    printf("Do you want to setting the passworld? 0) No ; 1) YES \n");
+    int set_passworld = 0;
+    if(scanf("%d",&set_passworld)!=1)
     {
-        uint8_t key = derive_key(password);
-        xor_buffer(target->file->content, target->file->size, key);
-        target->file->key = key;
-        target->file->Encrypt = 1;
+        printf("input error \n");
+        return -1;
+    }  
+
+    /*The clear buffer */
+    int change  = 0;
+    while ((change = getchar()) != '\n' && change != -1){};
+    /* getchar = get the char for buffer
+       and drop this , until do the \n and change == -1
+       Ctrl+Z == -1
+    */
+
+    if (set_passworld == 1)
+    {
+        char password[64] = {0};
+        printf ("please setting the passworld \n");
+        
+        if(scanf("%63s",password)!=1)
+        {
+            printf("input error\n");
+            return -1;
+        }
+        /*Step 3: encrypt if password provided*/
+        if (password!=NULL && password[0]!='\0')
+        {
+            uint8_t key = derive_key(password);
+            xor_buffer(target->file->content, target->file->size, key);
+            target->file->key = key;
+            target->file->Encrypt = 1;
+        }
+        else
+        {
+            target->file->Encrypt = 0;
+            target->file->key = 0;
+        }
     }
     else
     {
-        target->file->Encrypt = 0;
-        target->file->key = 0;
+            target->file->Encrypt = 0;
+            target->file->key = 0;
     }
 
     printf("put: success, file size = %d bytes\n", target->file->size);
     return 0;
 }
 
-int file_sys_get(const char *file_name, const char *path, const char *password)
+
+/*The ge file function*/
+int file_sys_get(const char *file_name, const char *password , uint8_t** out_buffer, size_t* out_size)
 {
-    if (!file_name || !*file_name || !path || !*path)
+    if (!file_name || !*file_name || !out_buffer || !out_size)
     {
         printf("get: invalid filename or path\n");
         return -1;
@@ -720,15 +778,15 @@ int file_sys_get(const char *file_name, const char *path, const char *password)
         current = current->sibling;
     }
 
-    if (!target)
+    if(!target)
     {
-        printf("get: no such file: %s\n", file_name);
+        printf("get: The dir is empty \n");
         return -1;
     }
 
     if (!target->file || !target->file->content || target->file->size <= 0)
     {
-        printf("get: file is empty\n");
+        printf("get: File not found or empty\n");
         return -1;
     }
 
@@ -737,54 +795,51 @@ int file_sys_get(const char *file_name, const char *path, const char *password)
     {
         if (!password || !*password)
         {
-            printf("get: file is Encrypt, password required\n");
+            printf("get: File is Encrypt, password required\n");
             return -1;
         }
 
         uint8_t input_key = derive_key(password);
         if (input_key != target->file->key)
         {
-            printf("get: wrong password\n");
+            printf("get: Wrong password\n");
             return -1;
         }
-
-        // decrypt temporarily
-        xor_buffer(target->file->content, target->file->size, target->file->key);
     }
 
-    // Step 3: write to host path
-    FILE *fp = fopen(path, "wb");
-    if (!fp)
-    {
-        printf("get: cannot write to %s\n", path);
 
-        // encrypt back if needed
-        if (target->file->Encrypt)
-        {
-            xor_buffer(target->file->content, target->file->size, target->file->key);
-        }
+    /*
+        The open file or build the file stream to operation
+
+        path : is your open and build role
+        wb : open to the bit mode
+        w: write  b: is check the different os compatibility.
+
+        FILE* fp pointer to pointer the file postion
+    */
+
+    // Step 3: duplication the Decrypt content
+    uint8_t *Decrypt_buffer = malloc(target->file->size);
+    
+    if (Decrypt_buffer==NULL) 
+    {
+        printf("get: the Decrypt content memory alloc failed\n");
         return -1;
     }
 
-    size_t written = fwrite(target->file->content, 1, target->file->size, fp);
-    fclose(fp);
+    memcpy(Decrypt_buffer, target->file->content, target->file->size); //Duplication
 
-    // encrypt back to keep memory secure
-    if (target->file->Encrypt)
+    if (target->file->Encrypt) 
     {
-        xor_buffer(target->file->content, target->file->size, target->file->key);
+        xor_buffer(Decrypt_buffer, target->file->size, target->file->key);
     }
 
-    if (written != target->file->size)
-    {
-        printf("get: write error\n");
-        return -1;
-    }
-
-    printf("get: success, written %zu bytes to %s\n", written, path);
-    return 0;
+    *out_buffer = Decrypt_buffer;
+    *out_size  = target->file->size;
+     return 0;
 }
 
+/*The display file content*/
 int file_sys_cat(const char *file_name, const char *password)
 {
     if (!file_name || !*file_name)
@@ -819,10 +874,10 @@ int file_sys_cat(const char *file_name, const char *password)
         return 0;
     }
 
-    // Step 2: check password if Encrypt
+    // Step 2: check password if decrypt
     if (target->file->Encrypt)
     {
-        if (!password || !*password)
+        if (!password || !*password) 
         {
             printf("cat: file is Encrypt, password required\n");
             return -1;
@@ -841,7 +896,7 @@ int file_sys_cat(const char *file_name, const char *password)
 
     // Step 3: print content
     printf("=== Content of %s ===\n", file_name);
-    fwrite(target->file->content, 1, target->file->size, stdout);
+    fwrite(target->file->content, 1, target->file->size, stdout); // stdout : moniter print
     printf("\n=== End of file ===\n");
 
     // encrypt back
@@ -857,7 +912,7 @@ void file_sys_state(void)
 {
     Node *current = g_cwd->child;
 
-    printf("File Name\tType\tEncrypt\n"); // \t -> Horzion syymbol
+    printf("File Name \t Type\t Encrypt \n"); // \t -> Horzion syymbol
 
     while (current != NULL)
     {
@@ -878,4 +933,23 @@ void file_sys_state(void)
     }
 }
 
-// status 晚上 21:30 做 1/5 要修內容跟寫 read me
+void file_rule_display(const char* path_display_buffer , const Node* current_dir)
+{
+    Node* stack[1024] = {0};
+    int depth = 0;
+    
+    while (current_dir)
+    {
+        /*Every depth block recodeing the dir address*/
+        stack[depth++] =current_dir;
+        current_dir = current_dir->parent;  // back
+    }
+
+    while (depth !=0)
+    {
+        printf("%s",stack[depth-1]->name);
+    }
+    
+    
+
+}

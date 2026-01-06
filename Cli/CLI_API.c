@@ -1,16 +1,21 @@
 #include "CLi_API.h"
 
+#include "../Common_Function/Common_function.h"
+
 static void command_loop(void);
 
 int cli(void) // 這邊要修 內容
 {
     while (1)
     {
-        char option_buffer[256]; // The max you car read char.
+        char option_buffer[256]; // The max you car read char
         int option = 0;
 
         char partition_option_buffer[256];
         uint64_t partition_size = 0;
+
+        
+        Com_ensure_dump_dir(); // The init dump store file
 
         /*Step 1 The basic function choose*/
         printf("\n  ==== WELCOME TO TONY_File_system ===== \n");
@@ -32,11 +37,11 @@ int cli(void) // 這邊要修 內容
         switch (option)
 
         {
-        case 1:
+        // case 1: // writen the autoload dump and then into file
                 
-            file_sys_load("test.img");
+        //     // if 
 
-            break;
+        //     // break;
 
         case 2: /*Step 2 Specify the partition size */
 
@@ -56,7 +61,7 @@ int cli(void) // 這邊要修 內容
 
             printf(" into the CLI \n");
             command_loop();
-            printf("Make new partition successful!\n");
+            // printf("Make new partition successful!\n");
 
             break;
             // case 3: // system info display
@@ -74,12 +79,13 @@ int cli(void) // 這邊要修 內容
 
 static void command_loop(void) // The init_CLI
 {
-    // char specfy_name [20] = {'\0'};
-    char line[MAX_CMD] = {'\0'};
+    
+ 
+    char line[MAX_CMD] = {0};
 
     while (1)
     {
-        printf("TONY_File_system > ");
+        printf("TONY_File_system > "); // The specy name modefie
 
         if (!fgets(line, sizeof(line), stdin))
         {
@@ -100,9 +106,21 @@ static void command_loop(void) // The init_CLI
         char *cmd = strtok(line, " "); // line find the first
         char *arg = strtok(NULL, " "); // arg RD
 
-        /*改函式指標*/
+        /* The auto restore function*/
         if (strcmp(cmd, "exit") == 0)
         {
+            FILE* fp = fopen(LAST_DUMP,"w");
+            if(fp != NULL)
+            {
+                file_dump_dfs(g_root,"",fp);
+                fclose(fp);
+                printf("Auto store to %s \n",LAST_DUMP);
+            }
+            else
+            {
+                printf("Auto store is failed: cannot open %s\n",LAST_DUMP);
+            }
+
             break;
         }
 
@@ -119,7 +137,7 @@ static void command_loop(void) // The init_CLI
             }
             else
             {
-                printf("mkdir: sucess.");
+                printf("mkdir: sucess.\n");
             }
         }
         else if (strcmp(cmd, "ls") == 0)
@@ -129,6 +147,7 @@ static void command_loop(void) // The init_CLI
 
         else if (strcmp(cmd, "cd") == 0)
         {
+    
             if (!arg)
             {
                 printf("usage: cd <path>\n");
@@ -181,7 +200,7 @@ static void command_loop(void) // The init_CLI
             }
         }
         
-        else if (strcmp(cmd, "dump") == 0)
+        else if (strcmp(cmd, "dump") == 0) /*The DIY dump*/
         {
             if(!arg)
             {
@@ -198,37 +217,70 @@ static void command_loop(void) // The init_CLI
             file_dump_dfs(g_root,"",fp);
             fclose(fp); // close file
         }
-                else if (strcmp(cmd, "put") == 0)
-        {
-            char *fs_file  = strtok(NULL, " "); // 第 2 個參數
-            char *password = strtok(NULL, " "); // 第 3 個參數
 
-            if (!arg || !fs_file)
+        else if (strcmp(cmd, "put") == 0)
+        {     
+            if (!arg)
             {
-                printf("usage: put <host_path> <fs_file> <password>\n");
+                printf("usage: put <filename> <dis_path> \n");
                 continue;
             }
+            const char* file_path = arg;      // For user specify
+            char *arg2 = strtok(NULL, " ");  // For user specify
+            char *arg3 = strtok(NULL, " ");  // For user specify
 
-            if (file_sys_put(arg, fs_file, password) != 0)
+            /*
+                arg = 
+                fs_file = your file name 
+                arg 3 = your 
+            */
+            const char* dis_path = arg2? arg2:file_path;
+
+            if (file_sys_put(arg, dis_path) != 0)
             {
                 printf("put: failed\n");
             }
         }
+
         else if (strcmp(cmd, "get") == 0)
         {
-            char *host_path = strtok(NULL, " "); // 第 2 個參數
+            uint8_t* get_content = NULL;
+            size_t file_size = 0 ;
             char *password  = strtok(NULL, " "); // 第 3 個參數
 
-            if (!arg || !host_path)
+            if (arg == NULL) 
             {
-                printf("usage: get <fs_file> <host_path> <password>\n");
+                printf("usage: get <fs_file> <password>\n");
                 continue;
             }
 
-            if (file_sys_get(arg, host_path, password) != 0)
+            if (file_sys_get(arg,password,&get_content,&file_size ) != 0)
             {
                 printf("get: failed\n");
+                continue;
             }
+
+            /*The out put file*/
+            FILE* fp = fopen(arg,"wb");
+            if(fp==NULL)
+            {
+                printf("get: cannot write to %s\n", arg);
+                free(get_content);
+                continue;
+            }
+            size_t written = fwrite(get_content,1,file_size,fp);
+            fclose(fp);
+
+            if(written != file_size)
+            {
+                printf("get: write error \n");
+                free(get_content);
+                continue;
+            }
+
+            printf("get: success, written %zu bytes to %s\n", written, arg);
+            free(get_content);
+
         }
         else if (strcmp(cmd, "cat") == 0)
         {
@@ -245,7 +297,7 @@ static void command_loop(void) // The init_CLI
                 printf("cat: failed\n");
             }
         }
-        else if (strcmp(cmd, "state")==0)
+        else if (strcmp(cmd, "status")==0)
         {
             file_sys_state();
         }
@@ -258,10 +310,10 @@ static void command_loop(void) // The init_CLI
             printf("cd <path>                       - change directory\n");
             printf("touch <name>                    - create empty file\n");
             printf("rm <name>                       - remove file\n");
-            printf("put <host_path> <fs_file> <pw>  - upload & encrypt file\n");
-            printf("get <fs_file> <host_path> <pw>  - decrypt & download file\n");
+            printf("put <filename> <dis_path>  - upload & encrypt file\n");
+            printf("get <fs_file>  <password>  - decrypt & download file\n");
             printf("cat <fs_file> <pw>              - decrypt & show content\n");
-            printf("state                           - display now directory all include file\n");
+            printf("status                           - display now directory all include file\n");
             printf("dump <file>                     - dump file system\n");
             printf("exit                            - exit cli\n");
             printf("==================\n");
