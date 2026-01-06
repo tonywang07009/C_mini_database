@@ -245,6 +245,10 @@ static void command_loop(void) // The init_CLI
                 printf("cat: failed\n");
             }
         }
+        else if (strcmp(cmd, "state")==0)
+        {
+            file_sys_state();
+        }
         else if (strcmp(cmd, "help") == 0)
         {
             printf("\n==== Commands ====\n");
@@ -257,6 +261,7 @@ static void command_loop(void) // The init_CLI
             printf("put <host_path> <fs_file> <pw>  - upload & encrypt file\n");
             printf("get <fs_file> <host_path> <pw>  - decrypt & download file\n");
             printf("cat <fs_file> <pw>              - decrypt & show content\n");
+            printf("state                           - display now directory all include file\n");
             printf("dump <file>                     - dump file system\n");
             printf("exit                            - exit cli\n");
             printf("==================\n");

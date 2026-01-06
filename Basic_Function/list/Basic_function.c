@@ -1,38 +1,44 @@
-#include "list_API.h"
+#include "Basic_function.h"
 
-Node *g_root = NULL; // define for here
+/*The extern golobal varable*/
+Node *g_root = NULL; 
 Node *g_cwd = NULL;
 
 /*
-    1. 整理共同函式 抽成小工具
+    1. 系統壓力測試 
     2. clean code  設計
     3. makefile 加
-
+    4. 檢查每個code 是否有符合老師要求
+    5. 完成 基本功能 readme 跟 common function (整理共同函式 抽成小工具)
+    6. 寫維基   
 */
 
+/* file system initize. */
 void file_sys_init(void)
 {
-    g_root = (Node *)malloc(sizeof(Node));
+    
+    g_root = (Node *)malloc(sizeof(Node)); // The root node create.
     if (g_root == NULL)
     {
         printf("The root create fail \n");
         return;
     }
-
-    strcpy(g_root->name, "/"); // The file for inside
-    g_root->type = NODE_DIR;
+    strcpy(g_root->name, "/"); // Copy the "/" to g_root->name space.
+    g_root->type = NODE_DIR;  
     g_root->parent = NULL;
     g_root->child = NULL;
     g_root->sibling = NULL;
-    g_cwd = g_root; // now i'm staying node
+    g_cwd = g_root;           /*Pointer the g_cwd to g_root
+                                The g_cwd is use for pointer now directory.
+                              */ 
 }
 
-
-int file_sys_mkdir(const char *name)
+/* create the directory */
+int file_sys_mkdir(const char *dir_name)
 {
-    if (!name || !*name) // name pointer address *name -> content
+    if (!dir_name || !*dir_name) 
     {
-        printf("Invalid directory name.\n");
+        printf("Invalid directory dir_name.\n");
         return -1;
     }
 
@@ -44,178 +50,213 @@ int file_sys_mkdir(const char *name)
     }
 
     // init_newnode
-    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); // The name dupilcation
+    strncpy(new_node->name, dir_name, (sizeof(new_node->name) - 1)); // The dir_name dupilcation
     new_node->name[sizeof(new_node->name) - 1] = '\0';           // The end symbol
     new_node->type = NODE_DIR;
     new_node->parent = g_cwd;
     new_node->child = NULL;
     new_node->sibling = NULL;
 
-    // handon the child chain
+    // The first connect the child chain
     if (g_cwd->child == NULL)
     {
         g_cwd->child = new_node;
     }
     else
     {
-        Node *current = g_cwd->child;
-        while (current->sibling != NULL) // The mkdir like samnode build tree.
+        // The parallelization (平行化) the child sibling chain
+        Node *current_dir = g_cwd->child;
+        
+        /* Find the empry silbing algtrom*/
+        while (current_dir->sibling != NULL) 
         {
-            current = current->sibling;
+            current_dir = current_dir->sibling; 
         }
-
-        current->sibling = new_node; // now dir next build the new one
+        current_dir->sibling = new_node; // now dir next build the new one
     }
     return 0;
 }
 
-int file_sys_ls(Node *nowdir)
+/*Display this layer include directory*/
+int file_sys_ls(const Node *now_dir)
 {
-    if (nowdir == NULL)
+    if (now_dir == NULL)
     {
         printf("fail_dir.\n");
         return -1;
     }
 
-    Node *current = nowdir->child; // print the layer all child node
-    while (current != NULL)
+    Node *current_dir = now_dir->child; 
+
+    /*print the layer all child node*/
+    while (current_dir != NULL)
     {
-        printf("%s ", current->name);
-        current = current->sibling;
+        printf("%s ", current_dir->name);
+        current_dir = current_dir->sibling;
     }
     printf("\n");
     return 0;
 }
 
-
-int file_sys_cd(const char *path)
+/* Into the directory*/
+int file_sys_cd(const char *cd_dir)
 {
-    /*cd ".." */
-    if (strcmp(path, "..") == 0)
+    /*back to last layer*/
+    if (strcmp(cd_dir, "..") == 0) // strcmp is for compare the string is similar.
     {
-        if (g_cwd->parent)
+        if (g_cwd->parent) 
         {
             g_cwd = g_cwd->parent;
         }
         return 0;
     }
 
-    /* cd "/" */
-    if (strcmp(path, "/") == 0) // strcmp 比較字串內容是否相同
+    /*back to root layer*/
+    if (strcmp(cd_dir, "/") == 0) 
     {
         g_cwd = g_root;
         return 0;
     }
 
     /* cd "name" */
-    Node *current = g_cwd->child;
-    while (current != NULL)
+    Node *current_dir = g_cwd->child;
+    while (current_dir != NULL)
     {
-        if (current->type == NODE_DIR && strcmp(current->name, path) == 0)
+        if (current_dir->type == NODE_DIR && strcmp(current_dir->name, cd_dir) == 0)
         {
-            g_cwd = current;
+            g_cwd = current_dir;
             return 0;
         }
-        current = current->sibling;
+        current_dir = current_dir->sibling;
     }
 
-    return -1; // can find't it
+    return -1;
 }
 
 
-
-int file_sys_rmdir(const char *path)
+/*Removed the directory*/
+int file_sys_rmdir(const char *rm_dir)
 {
-    Node *prev = NULL;
-    Node *current = g_cwd->child;
-    while (current != NULL)
+
+    Node *prev_dir = NULL; // this is for find the target node last.
+
+    Node *current_dir = g_cwd->child;
+    while (current_dir != NULL)
     {
-        if (current->type == NODE_DIR && strcmp(current->name, path) == 0)
+        if (current_dir->type == NODE_DIR && strcmp(current_dir->name, rm_dir) == 0)
         {
             break;
         }
 
-        prev = current;
-        current = current->sibling; // nextp
+        /* The target find */
+        prev_dir = current_dir;
+        current_dir = current_dir->sibling; 
     }
 
-    if (current == NULL)
+    if (current_dir == NULL)
     {
-        printf("rmdir: no such directory: %s\n", path);
+        printf("rmdir: no such directory: %s\n", rm_dir);
         return -1;
     }
-    printf("found target %s\n", current->name);
+    printf("found target %s\n", current_dir->name);
 
-    if (current->child != NULL)
+    /*The "Fool-proof" mechanism*/
+    if (current_dir->child != NULL)
     {
-        printf("can't rm : you have child layer .");
+        char check_del[8] = {0};
+        printf("Directory not empty, delete anyway? \n into : (yes or no) ");
+        
+        if(scanf("%7s",check_del)!=1)
+        {
+            printf("Input error \n");
+            return -1;
+        }
+        
+        if(strcmp(check_del,"no")==0)
+        {
+            return 0; //cancel del.
+        }
+        else if(strcmp(check_del,"yes")==0) // finsh
+        {
+            /*call void free_subtree(Node* now_dir);*/
+            /*will finshed in afternoon */
+        }
+        else 
+        {
+            printf("Undefine parameter ");
+            return -1;
+        }
+    
     }
 
-    if (prev == NULL)
+    /*The root situation to update linklist*/
+    if (prev_dir == NULL)
     {
-        g_cwd->child = current->sibling; // update the child postion
+        g_cwd->child = current_dir->sibling;
     }
+
+    /*The genral situation to update linklist*/
     else
     {
-        prev->sibling = current->sibling; // update postion.
+        prev_dir->sibling = current_dir->sibling; // Update postion.
     }
 
-    free(current);
+    free(current_dir);
     return 0;
 }
 
-int file_sys_rm(const char *name)
+/*The remove file */
+int file_sys_rm(const char *file_name)
 {
-    Node *prev = NULL;
-    Node *current = g_cwd->child;
+    Node *prev_file = NULL;
+    Node *current_file = g_cwd->child;
 
-    while (current!=NULL)
+    while (current_file!=NULL)
     {
-        if(current->type == NODE_FILE && strcmp(current->name, name) == 0)
+        if(current_file->type == NODE_FILE && strcmp(current_file->file, file_name) == 0)
         {
             break; // the find del file
         }
-        prev = current;
-        current = current->sibling;
+        prev_file = current_file;
+        current_file = current_file->sibling;
     }
 
-        if (current == NULL) 
+        if (current_file == NULL) 
         {
-            printf("rm: no such file: %s\n", name);
+            printf("rm: no such file: %s\n", file_name);
             return -1;
         }
 
-        printf("found target file %s\n", current->name);
-        if(current->file != NULL)
+        printf("found target file %s\n", current_file->file);
+        if(current_file->file != NULL)
         {
-            if(current->file->content != NULL)
+            if(current_file->file->content != NULL)
             {
-                free(current->file->content);
+                free(current_file->file->content);
             }
-            free(current->file);
+            free(current_file->file);
         }
 
-        if (prev == NULL)
+        if (prev_file == NULL)
         {
-            g_cwd->child = current->sibling; // update the child postion
+            g_cwd->child = current_file->sibling; // Update the child postion
         }
         else
         {
-            prev->sibling = current->sibling; // update postion.
+            prev_file->sibling = current_file->sibling; // Update postion.
         }
         
-        free(current);
+        free(current_file);
         printf("free sussful");
 
         return 0;
 }
 
-
-
+/*The create file*/
 int file_sys_touch(const char *name)
 {
     
-    if (!name || !*name) // name pointer address *name -> content
+    if (!name || !*name) // Name pointer address *name -> content
     {
         printf("Invalid file name.\n");
         return -1;
@@ -229,8 +270,10 @@ int file_sys_touch(const char *name)
     }
 
     // init_newnode
-    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); // The name dupilcation
-    new_node->name[sizeof(new_node->name) - 1] = '\0';           // The end symbol
+    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); /*The name dupilcation
+                                                                   The size of -1 is for end symbol S*/
+                                                                 
+    new_node->name[sizeof(new_node->name) - 1] = '\0';           // Add The end symbol
     new_node->type = NODE_FILE;
     new_node->parent = g_cwd;
     new_node->child = NULL;
@@ -777,6 +820,36 @@ int file_sys_cat(const char* file_name, const char *password)
 
     return 0;
 }
+
+void file_sys_state(void)
+{
+    Node* current = g_cwd->child;
+    
+    printf("File Name\tType\tEncrypt\n"); // \t -> Horzion syymbol
+
+    while(current != NULL)
+    {
+        /*switch mod*/
+        if(current->type == NODE_DIR)
+        {
+            printf("%s\t DIR\t-\t\n",current->name);
+
+        }
+        else if(current->type == NODE_FILE && current->file != NULL)
+        {
+            printf("%s\tFILE \t Size :%d\t Encrypt %s\n",
+                current->name,
+                current->file->size,
+                current->file->Encrypt? "yes":"no");
+        }
+
+        current = current->sibling;
+    }
+
+}
+
+
+
 
 
 // status 晚上 21:30 做 1/5 要修內容跟寫 read me

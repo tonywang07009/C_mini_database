@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -std=c11
 # The basic function
 
 BASIC_FUNCTION =\
-					../Basic_Function/list/list_API.c\
+					../Basic_Function/list/Basic_function.c\
 					../Cli/CLI_API.c\
 					../Cli/test.c
 										
