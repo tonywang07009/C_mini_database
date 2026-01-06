@@ -933,7 +933,7 @@ void file_sys_state(void)
     }
 }
 
-void file_rule_display(const char* path_display_buffer , const Node* current_dir)
+void file_rule_display(const Node* current_dir)
 {
     Node* stack[1024] = {0};
     int depth = 0;
@@ -945,11 +945,14 @@ void file_rule_display(const char* path_display_buffer , const Node* current_dir
         current_dir = current_dir->parent;  // back
     }
 
-    while (depth !=0)
+    for(int i = (depth-1) ; i>=0 ; i--)
     {
-        printf("%s",stack[depth-1]->name);
+        printf("%s",stack[i]->name);
+
+        if(i>0 && strcmp(stack[i]->name,"/")!=0)
+        {
+            printf("/");
+        }
     }
-    
-    
 
 }

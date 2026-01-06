@@ -80,13 +80,13 @@ int cli(void) // 這邊要修 內容
 static void command_loop(void) // The init_CLI
 {
     
- 
     char line[MAX_CMD] = {0};
 
     while (1)
     {
         printf("TONY_File_system > "); // The specy name modefie
-
+        file_rule_display(g_cwd);
+        
         if (!fgets(line, sizeof(line), stdin))
         {
             printf("Input error.\n");

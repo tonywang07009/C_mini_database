@@ -59,7 +59,7 @@ int file_sys_cat(const char *file_name, const char *password);
 int file_sys_load(const char* dump_file);
 void file_sys_state(void);
 void file_dump_dfs(Node* node , const char* parent_path ,FILE *fp);
-void file_rule_display(const char* path_display_buffer , const Node* current_dir);
+void file_rule_display(const Node* current_dir);
 
 // helper function
 uint8_t derive_key(const char *password);
