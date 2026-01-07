@@ -372,7 +372,35 @@ static void command_loop(void) // The init_CLI
         }
         else if (strcmp(cmd, "status")==0)
         {
+            FsStats st;
+            fs_get_stats(&st);
+
+            size_t free_blocks =  0;
+            if(st.total_blocks > st.used_blocks)
+            {
+                free_blocks =  st.total_blocks - st.used_blocks;
+            }
+            else
+            {
+                free_blocks = 0;
+            }
+
+            size_t free_space  = free_blocks * st.block_size;
+            printf("\n===== The System status ===== \n");
+            
+            printf("partition size: %zu\n", st.partition_size);
+            printf("total inodes: %zu\n",   st.total_inodes);
+            printf("used inodes: %zu\n",    st.used_inodes);
+            printf("total blocks: %zu\n",   st.total_blocks);
+            printf("used blocks: %zu\n",    st.used_blocks);
+            printf("files' blocks: %zu\n",  st.file_blocks);
+            printf("block size: %zu\n",     st.block_size);
+            printf("free space: %zu\n",     free_space);
+
+
+            printf("\n");
             file_sys_state();
+            
         }
         else if (strcmp(cmd, "help") == 0)
         {

@@ -8,6 +8,16 @@
 #include <inttypes.h> // for into the uint64_t
 
 #include "../../Common_Function/Common_function.h"
+typedef struct FsStats 
+{
+    size_t partition_size;   // bytes
+    size_t block_size;       // bytes
+    size_t total_blocks;
+    size_t used_blocks;
+    size_t file_blocks;
+    size_t total_inodes;
+    size_t used_inodes;
+} FsStats;
 
 typedef enum NodeType
 {
@@ -45,6 +55,11 @@ extern Node *g_root; // The extern is golobal var
                      // The queue management
 extern Node *g_cwd;  // The child node
 
+// The dispaly memnory space varable
+extern size_t g_block_size;    
+extern size_t g_total_blocks;  
+extern size_t g_total_inodes;  
+
 void file_sys_init(void);
 
 int file_sys_mkdir(const char *name);
@@ -69,4 +84,9 @@ void xor_buffer(char *buf, int size, uint8_t key);
 Node* find_in_dir(Node* dir_path ,const char* name, int want_file);
 Node* Fs_resolve(const char* path, int want_file);
 const char* get_basename(const char* path) ;
+
+
+/*status display*/
+static void fs_traverse(Node *node, FsStats *st);
+void fs_get_stats(FsStats *st);
 #endif

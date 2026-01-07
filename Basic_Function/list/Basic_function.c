@@ -4,6 +4,10 @@
 Node *g_root = NULL;
 Node *g_cwd = NULL;
 
+size_t g_block_size   = 1024;
+size_t g_total_blocks = 2000;
+size_t g_total_inodes = 221;
+
 /*
     1. 系統壓力測試
     2. clean code  設計
@@ -1012,7 +1016,7 @@ void file_rule_display(const Node* current_dir)
 
 }
 
-/*The Auto create file*/
+/*The Auto create file common tool*/
 void Com_ensure_dump_dir(void)
 {
     #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
@@ -1087,5 +1091,36 @@ Node* Fs_resolve(const char* path, int want_file)
 const char* get_basename(const char* path) 
 {
     const char *p = strrchr(path, '/');
-    return p ? p + 1 : path;
+    return p? p + 1 : path;
+}
+
+static void fs_traverse(Node *node, FsStats *status)
+{
+    if (!node) return;
+
+    status->used_inodes++;
+
+    if (node->type == NODE_FILE && node->file) 
+    {
+        size_t size   = (size_t)node->file->size;
+        size_t blocks = (size + status->block_size - 1) / status->block_size;
+
+        status->file_blocks += blocks;
+        status->used_blocks += blocks;
+    }
+
+    fs_traverse(node->child,  status);
+    fs_traverse(node->sibling, status);
+}
+
+void fs_get_stats(FsStats *status)
+{
+    memset(status, 0, sizeof(*status));
+
+    status->block_size    = g_block_size;
+    status->total_blocks  = g_total_blocks;
+    status->partition_size = status->block_size * status->total_blocks;
+    status->total_inodes  = g_total_inodes;
+
+    fs_traverse(g_root, status);
 }
