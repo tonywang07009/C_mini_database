@@ -2,6 +2,8 @@
 #define __COMMON_FUNCTION__
 
 #include "../Basic_Function/list/Basic_function.h"
+
+
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
 
     #include <direct.h>

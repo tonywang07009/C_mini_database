@@ -239,7 +239,6 @@ int file_sys_rm(const char *file_name)
         }
         free(current_file->file);
     }
-
     if (prev_file == NULL)
     {
         g_cwd->child = current_file->sibling; // Update the child postion
@@ -256,12 +255,12 @@ int file_sys_rm(const char *file_name)
 }
 
 /*The create file*/
-int file_sys_touch(const char *name)
+int file_sys_touch(const char *file_name)
 {
 
-    if (!name || !*name) // Name pointer address *name -> content
+    if (!file_name || !*file_name) // Name pointer address *file_name -> content
     {
-        printf("Invalid file name.\n");
+        printf("Invalid file file_name.\n");
         return -1;
     }
 
@@ -273,7 +272,7 @@ int file_sys_touch(const char *name)
     }
 
     // init_newnode
-    strncpy(new_node->name, name, (sizeof(new_node->name) - 1)); /*The name dupilcation
+    strncpy(new_node->name, file_name, (sizeof(new_node->name) - 1)); /*The file_name dupilcation
                                                                    The size of -1 is for end symbol S*/
 
     new_node->name[sizeof(new_node->name) - 1] = '\0'; // Add The end symbol
@@ -315,64 +314,6 @@ int file_sys_touch(const char *name)
     return 0;
 }
 
-/*Create the recoding the file system tree*/
-void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
-{
-    if (!node)
-    {
-        return;
-    }
-
-    char path[2048]; // The store path role
-
-    /*put in the file condition */
-    if (node == g_root)
-    {
-        strcpy(path, "/"); // for root
-    }
-    else // build the abs file role
-    {
-        snprintf(path, sizeof(path), "%s/%s", parent_path, node->name);
-        // The display file path name
-        /*
-            The "snprintf" function is out the format file to you specify area
-            and this function requestion the buffer sizeof
-            -----
-            path : you specft area
-            sizeof(path) : the area total size.
-
-        */
-    }
-
-    /*The condtion for */
-       DiskNode header;
-
-       header.type    = (node->type == NODE_DIR? 0:1); // 0-> Dir 1->File
-       header.encrypt = (node->type == NODE_FILE && 
-                         node->file? node->file->Encrypt : 0);
-
-       header.size    = (node->type == NODE_FILE && 
-                         node->file ? node->file->size : 0); 
-       header.path_len = (uint16_t)strlen(path);
-
-       /*written in header sturct in the dump file*/
-       fwrite(&header,sizeof(header),1,fp);
-
-       /*written path , path len is from your file define
-         so the fwrite will accoding the path len writen the real role long */
-       fwrite(path,1,header.path_len,fp);
-
-       if(node->type == NODE_FILE &&
-          node->file && node->file->size >0)
-       {
-         fwrite(node->file->content,1,node->file->size,fp);
-       }
-
-
-    /*The recursion the relation role */
-    file_sys_dump_dfs(node->child, path, fp);
-    file_sys_dump_dfs(node->sibling, parent_path, fp);
-}
 
 /*The recover file system content*/
 int file_sys_load(const char *dump_file)
@@ -569,6 +510,7 @@ int file_sys_load(const char *dump_file)
                     token = strtok(NULL, "/");
                 }
             }
+            
             /*create the dumpfile*/
             if(file_sys_touch(filename)!=0)
             {
@@ -636,37 +578,6 @@ int file_sys_load(const char *dump_file)
     
     
 
-/*The Product the key*/
-uint8_t derive_key(const char *password)
-{
-    if (!password || !*password)
-    {
-        return 0x5A; // default key
-    }
-
-    uint8_t key = 0;
-    while (*password)
-    {
-        key ^= (uint8_t)(*password);
-        password++;
-    }
-
-    return key ? key : 0x5A; // avoid key = 0
-}
-
-/*The Encrepty Decrtpty key*/
-void xor_buffer(char *buf, int size, uint8_t key)
-{
-    if (!buf || size <= 0)
-    {
-        return;
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        buf[i] ^= key;
-    }
-}
 
 /*The put file function*/
 int file_sys_put(const char* file_name, const char* dst_path)
@@ -992,6 +903,42 @@ void file_sys_state(void)
     }
 }
 
+
+/*The Safety_Function */
+uint8_t derive_key(const char *password)
+{
+    if (!password || !*password)
+    {
+        return 0x5A; // default key
+    }
+
+    uint8_t key = 0;
+    while (*password)
+    {
+        key ^= (uint8_t)(*password);
+        password++;
+    }
+
+    return key ? key : 0x5A; // avoid key = 0
+}
+
+/*The Encrepty Decrtpty key*/
+void xor_buffer(char *buf, int size, uint8_t key)
+{
+    if (!buf || size <= 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        buf[i] ^= key;
+    }
+}
+
+
+
+/*common funcion*/
 void file_rule_display(const Node* current_dir)
 {
     Node* stack[1024] = {0};
@@ -1024,6 +971,67 @@ void Com_ensure_dump_dir(void)
     #else
          mkdir(DUMP_DIR,0755); // Return -1 if the dirtery is create 
     #endif
+
+}
+
+
+/*Create the recoding the file system tree*/
+void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
+{
+    if (!node)
+    {
+        return;
+    }
+
+    char path[2048]; // The store path role
+
+    /*put in the file condition */
+    if (node == g_root)
+    {
+        strcpy(path, "/"); // for root
+    }
+    else // build the abs file role
+    {
+        snprintf(path, sizeof(path), "%s/%s", parent_path, node->name);
+        // The display file path name
+        /*
+            The "snprintf" function is out the format file to you specify area
+            and this function requestion the buffer sizeof
+            -----
+            path : you specft area
+            sizeof(path) : the area total size.
+
+        */
+    }
+
+       /*The condtion for */
+       DiskNode header;
+
+       header.type    = (node->type == NODE_DIR? 0:1); // 0-> Dir 1->File
+       header.encrypt = (node->type == NODE_FILE && 
+                         node->file? node->file->Encrypt : 0);
+
+       header.size    = (node->type == NODE_FILE && 
+                         node->file ? node->file->size : 0); 
+       header.path_len = (uint16_t)strlen(path);
+
+       /*written in header sturct in the dump file*/
+       fwrite(&header,sizeof(header),1,fp);
+
+       /*written path , path len is from your file define
+         so the fwrite will accoding the path len writen the real role long */
+       fwrite(path,1,header.path_len,fp);
+
+       if(node->type == NODE_FILE &&
+          node->file && node->file->size >0)
+       {
+         fwrite(node->file->content,1,node->file->size,fp);
+       }
+
+
+    /*The recursion the relation role */
+    file_sys_dump_dfs(node->child, path, fp);
+    file_sys_dump_dfs(node->sibling, parent_path, fp);
 }
 
 /*get tool */
