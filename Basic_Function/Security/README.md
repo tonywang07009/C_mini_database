@@ -43,3 +43,10 @@ It provides functions to __derive an AES-256 key from a password__, __generate a
 ## 5. Security notes (important)
 - The custom key derivation and IV generation (srand/time + rand) __are NOT cryptographically secure__. __Use a standard KDF (e.g., PBKDF2, Argon2) and a cryptographically secure RNG for production code__.
 
+### Return other page
+
+- **[Home ](../../README.md)**
+
+- **[Basic_function](../Basic/README.md)**
+
+- **[CLi_function](../../Cli_Function/README.md)**

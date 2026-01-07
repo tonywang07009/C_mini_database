@@ -59,6 +59,8 @@ __Windows__
 ----
 ## 3. Document
 
+- **[CLi_function](./Cli_Function/README.md)**
+
 - **[Basic_function](./Basic_Function/Basic/README.md)**
 
 - **[Security_function](./Basic_Function/Security/README.md)**

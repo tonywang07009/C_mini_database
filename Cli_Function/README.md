@@ -79,3 +79,12 @@ The function cli_expection_handle __acts like a "safety breaker"__: __on critica
 
 - Read an encrypted file:
   - cat secret.txt your_password
+
+
+### Return other page
+
+- **[Home ](../../README.md)**
+
+- **[Security_function](../Basic_Function/Security/README.md)**
+
+- **[Basic_function](../Basic_Function/Basic/README.md)**
