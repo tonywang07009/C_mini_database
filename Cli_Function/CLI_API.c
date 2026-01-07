@@ -4,16 +4,15 @@ static void command_loop(void);
 
 int cli(void) // 這邊要修 內容
 {
+    file_sys_ensure_dump_dir(); // The init dump store file
     while (1)
     {
+        char name_only[128];
         char option_buffer[256]; // The max you car read char
         int option = 0;
 
         char partition_option_buffer[256];
         uint64_t partition_size = 0;
-
-        
-        file_sys_ensure_dump_dir(); // The init dump store file
 
         /*Step 1 The basic function choose*/
         printf("\n  ==== WELCOME TO File_system Builder ===== \n");
@@ -44,7 +43,7 @@ int cli(void) // 這邊要修 內容
         case 1: // writen the autoload dump and then into file
             printf("Choose the dump file name to load :");
             
-            char name_only[128];
+           
             if (!fgets(name_only, sizeof(name_only), stdin)) 
             {
                 printf("No input\n");
@@ -229,15 +228,20 @@ static void command_loop(void) // The init_CLI
                 printf("usage: dump <file> \n");
                 continue;
             }
-            FILE *fp = fopen(arg,"w");
-            if (fp == NULL)
+            /*The specfy  open dump file name*/
+            char dump_path[256] = {0};
+            snprintf(dump_path,sizeof(dump_path),"%s/%s",DUMP_DIR,arg);
+
+            FILE *fp = fopen(dump_path,"wb");
+            if (!fp)
             {
-                    printf("dump: cannot open %s\n", arg);
+                    printf("dump: cannot open %s\n", dump_path);
                     continue;
             }
             
             file_sys_dump_dfs(g_root,"",fp);
             fclose(fp); // close file
+            printf("dump: saved to %s\n", dump_path);
         }
 
         else if (strcmp(cmd, "put") == 0)

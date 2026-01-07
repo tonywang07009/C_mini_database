@@ -6,7 +6,6 @@ int main (void)
     // int mkdir_result = 0;
     int cli_result = 0;
     file_sys_init ();
-    
     if (cli_result != 1)
     {
         cli_result= cli();

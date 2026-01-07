@@ -28,7 +28,7 @@ BASIC_FUNCTION = \
     ../Basic_Function/Basic/Basic_function.c \
     ../Basic_Function/Security/Aes_function.c \
     ./CLI_API.c \
-    ./test.c
+    ./main.c
 
 SAFETY_FUNCTION = ../Additional_Function/tiny-AES-c/aes.c
 
