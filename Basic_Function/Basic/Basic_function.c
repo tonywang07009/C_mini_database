@@ -1,5 +1,5 @@
 #include "Basic_function.h"
-
+#include "../Security/Aes_function.h"
 /*The extern golobal varable*/
 Node *g_root = NULL;
 Node *g_cwd = NULL;
@@ -7,12 +7,7 @@ Node *g_cwd = NULL;
 size_t g_block_size   = 1024;
 size_t g_total_blocks = 2000;
 size_t g_total_inodes = 221;
-
 /*
-    1. 系統壓力測試
-    2. clean code  設計
-    3. makefile 加
-    4. 檢查每個code 是否有符合老師要求
     5. 完成 基本功能 readme 跟 common function (整理共同函式 抽成小工具)
     6. 寫維基
 */
@@ -20,7 +15,6 @@ size_t g_total_inodes = 221;
 /* file system initize. */
 void file_sys_init(void)
 {
-    char path_display_buffer[1024] = {0};
 
     g_root = (Node *)malloc(sizeof(Node)); // The root node create.
     if (g_root == NULL)
@@ -103,7 +97,7 @@ int file_sys_ls(const Node *now_dir)
     return 0;
 }
 
-/* Into the directory*/
+/* Change directory*/
 int file_sys_cd(const char *cd_dir)
 {
     /*back to last layer*/
@@ -192,7 +186,7 @@ int file_sys_rmdir(const char *rm_dir)
         }
     }
 
-    /*The root situation to update linklist*/
+    /* Root situation: update linklist head*/
     if (prev_dir == NULL)
     {
         g_cwd->child = current_dir->sibling;
@@ -230,7 +224,6 @@ int file_sys_rm(const char *file_name)
         return -1;
     }
 
-    printf("found target file %s\n", current_file->file);
     if (current_file->file != NULL)
     {
         if (current_file->file->content != NULL)
@@ -249,7 +242,7 @@ int file_sys_rm(const char *file_name)
     }
 
     free(current_file);
-    printf("free sussful");
+    printf("free successful\n \n");
 
     return 0;
 }
@@ -292,8 +285,11 @@ int file_sys_touch(const char *file_name)
         }
         new_node->file = file;
         new_node->file->content = NULL;
-        new_node->file->Encrypt = 0;
-        new_node->file->size = 0;
+        new_node->file->encrypted = 0;
+        new_node->file->original_size = 0;
+        new_node->file->encrypted_size = 0;
+        memset(new_node->file->iv, 0, sizeof(new_node->file->iv)); 
+        memset(new_node->file->aes_key, 0, sizeof(new_node->file->aes_key)); 
     }
 
     // handon the child chain
@@ -313,6 +309,15 @@ int file_sys_touch(const char *file_name)
     }
     return 0;
 }
+
+/* 
+
+ * Put File Function 
+ * Reads an external file and saves it into the file system.
+ * Supports optional AES encryption.
+ 
+ */
+
 
 
 /*The recover file system content*/
@@ -334,6 +339,7 @@ int file_sys_load(const char *dump_file)
         if(header.path_len >=sizeof(path))
         {
             printf("load error: The Disknode path_len over path buffer\n");
+            fclose(fp);
             return -1;
         }
 
@@ -342,6 +348,7 @@ int file_sys_load(const char *dump_file)
         // The size is header.path_len byte
         {
             printf("load error: The Disknode path_len unequal the pathbufferlen\n");
+            fclose(fp);
             return -1;
         }
         
@@ -566,10 +573,22 @@ int file_sys_load(const char *dump_file)
             }
 
             /*into the data to file space*/
-            file_node->file->size = header.size;
-            file_node->file->Encrypt = header.encrypt;
+            file_node->file->original_size = header.original_size;
+            file_node->file->encrypted = header.encrypt;
             g_cwd = saved_cwd;
-        }
+
+            if (header.encrypt) 
+            {
+                file_node->file->encrypted_size = header.size;
+                memcpy(file_node->file->iv, header.iv, 16); // Key is NOT loaded. User must provide password to regenerate key.
+                memset(file_node->file->aes_key, 0, 32); 
+            } 
+            else 
+            {
+                file_node->file->encrypted_size = 0;
+            }
+            
+        }   
     }
 
     fclose(fp);
@@ -641,11 +660,8 @@ int file_sys_put(const char* file_name, const char* dst_path)
     }
 
     /* get the file size*/
-    /* RD */
     fseek(fp, 0, SEEK_END);
-    
     long file_size = ftell(fp);
-
     fseek(fp, 0, SEEK_SET);
 
     if (file_size <= 0)
@@ -655,7 +671,7 @@ int file_sys_put(const char* file_name, const char* dst_path)
         return -1;
     }
 
-    /* Free old file content*/
+    /* Free old content*/
     if (target->file->content != NULL)
     {
         free(target->file->content);
@@ -674,7 +690,7 @@ int file_sys_put(const char* file_name, const char* dst_path)
     size_t read_size = fread(target->file->content, 1, file_size, fp);
     fclose(fp);
 
-    if (read_size != file_size)
+    if (read_size != (size_t)file_size)
     {
         printf("put: read file error\n");
         free(target->file->content);
@@ -683,7 +699,9 @@ int file_sys_put(const char* file_name, const char* dst_path)
     }
 
     /* Join the file size content */
-    target->file->size = file_size;
+    target->file->original_size = (uint32_t)file_size;
+    target->file->encrypted_size = 0;
+    target->file->encrypted = 0;
 
     printf("Do you want to setting the passworld? 0) No ; 1) YES \n");
     int set_passworld = 0;
@@ -704,7 +722,7 @@ int file_sys_put(const char* file_name, const char* dst_path)
     if (set_passworld == 1)
     {
         char password[64] = {0};
-        printf ("please setting the passworld \n");
+        printf ("please setting the password \n");
         
         if(scanf("%63s",password)!=1)
         {
@@ -712,31 +730,42 @@ int file_sys_put(const char* file_name, const char* dst_path)
             return -1;
         }
         /*Step 3: encrypt if password provided*/
-        if (password!=NULL && password[0]!='\0')
-        {
-            uint8_t key = derive_key(password);
-            xor_buffer(target->file->content, target->file->size, key);
-            target->file->key = key;
-            target->file->Encrypt = 1;
+        if (password && password[0]!='\0')
+        {   
+                /* AES encrypt */
+            if (file_sys_encrypt_content(target->file, password) != 0)
+            {
+                printf("put: AES encrypt failed\n");
+                return -1;
+            }
         }
         else
-        {
-            target->file->Encrypt = 0;
-            target->file->key = 0;
+        {   
+            target->file->encrypted = 0;
+            target->file->encrypted_size = 0;
+            memset(target->file->aes_key, 0, sizeof(target->file->aes_key)); // Because the aes_key is array type
+                                                                             // So need used the memset
         }
     }
     else
-    {
-            target->file->Encrypt = 0;
-            target->file->key = 0;
+    {       
+            // No password
+            target->file->encrypted_size = 0;
+            target->file->encrypted = 0;
+            memset(target->file->aes_key, 0, sizeof(target->file->aes_key));
+    
     }
-
-    printf("put: success, file size = %d bytes\n", target->file->size);
+    
+    target->file->original_size = (uint32_t)file_size;
+    printf("put: success, file size = %lu bytes\n", (unsigned long)file_size);
     return 0;
 }
 
 
-/*The ge file function*/
+/* 
+ * Get File Function
+ * Retrieves file from system, decrypting if necessary.
+ */
 int file_sys_get(const char *file_name, const char *password , uint8_t** out_buffer, size_t* out_size)
 {
     if (!file_name || !*file_name || !out_buffer || !out_size)
@@ -746,7 +775,7 @@ int file_sys_get(const char *file_name, const char *password , uint8_t** out_buf
     }
 
     // Step 1: find file node
-    Node *target = Fs_resolve(file_name,1);
+    Node *target = file_sys_resolve(file_name,1);
 
     if(!target)
     {
@@ -754,59 +783,56 @@ int file_sys_get(const char *file_name, const char *password , uint8_t** out_buf
         return -1;
     }
 
-    if (!target->file || !target->file->content || target->file->size <= 0)
+   if (!target->file || !target->file->content || target->file->original_size == 0) 
     {
         printf("get: File not found or empty\n");
         return -1;
     }
 
     // Step 2: check password if Encrypt
-    if (target->file->Encrypt)
-    {
-        if (!password || !*password)
-        {
-            printf("get: File is Encrypt, password required\n");
-            return -1;
-        }
-
-        uint8_t input_key = derive_key(password);
-        if (input_key != target->file->key)
-        {
-            printf("get: Wrong password\n");
-            return -1;
-        }
-    }
-
-
-    /*
-        The open file or build the file stream to operation
-
-        path : is your open and build role
-        wb : open to the bit mode
-        w: write  b: is check the different os compatibility.
-
-        FILE* fp pointer to pointer the file postion
-    */
-
-    // Step 3: duplication the Decrypt content
-    uint8_t *Decrypt_buffer = malloc(target->file->size);
+    FileMeta *fm = target->file;
     
-    if (Decrypt_buffer==NULL) 
+    /* The Duplication */
+    uint8_t *buffer = (uint8_t *)malloc(fm->encrypted ? fm->encrypted_size
+                                                      : fm->original_size);
+
+    if(!buffer)
     {
-        printf("get: the Decrypt content memory alloc failed\n");
+        printf("get: buffer alloc failed \n");
         return -1;
     }
 
-    memcpy(Decrypt_buffer, target->file->content, target->file->size); //Duplication
+    size_t len =  fm->encrypted ? fm->encrypted_size : fm->original_size;
+    memcpy(buffer,fm->content,len);
 
-    if (target->file->Encrypt) 
+    /* The Encrypted */
+    if(fm->encrypted)
     {
-        xor_buffer(Decrypt_buffer, target->file->size, target->file->key);
+        if (!password || !*password) 
+        {
+            printf("get: File is encrypted, password required\n");
+            free(buffer);
+            return -1;
+        }
+
+        /*The content cc*/
+        FileMeta tmp = *fm; // get the value
+        tmp.content = (char*)buffer;
+        tmp.encrypted_size = len;
+
+        if (file_sys_decrypt_content(&tmp, password) != 0) 
+        {
+            printf("get: decrypt failed (wrong password or corrupted data)\n");
+            free(buffer);
+            return -1;
+        }
+        
+        len = tmp.original_size; // encrypted  real long
     }
 
-    *out_buffer = Decrypt_buffer;
-    *out_size  = target->file->size;
-     return 0;
+    *out_buffer = buffer;
+    *out_size = len;
+    return 0;
 }
 
 /*The display file content*/
@@ -832,49 +858,57 @@ int file_sys_cat(const char *file_name, const char *password)
         current = current->sibling;
     }
 
-    if (!target)
+    if (!target || !target->file || !target->file->content ||
+        target->file->original_size == 0) 
     {
-        printf("cat: no such file: %s\n", file_name);
+        printf("cat: no such file or empty: %s\n", file_name);
         return -1;
     }
 
-    if (!target->file || !target->file->content || target->file->size <= 0)
-    {
-        printf("cat: file is empty\n");
-        return 0;
-    }
-
     // Step 2: check password if decrypt
-    if (target->file->Encrypt)
+    FileMeta *fm = target->file;
+
+    size_t len = fm->encrypted? fm->encrypted_size : fm->original_size;
+    uint8_t* buffer = (uint8_t*)malloc(len);
+    if(!buffer)
+    {
+        printf("cat: buffer alloc failed\n");
+        return -1;
+    }
+    /* Duplication */
+    memcpy(buffer, fm->content, len);
+
+    if (fm->encrypted) 
     {
         if (!password || !*password) 
         {
-            printf("cat: file is Encrypt, password required\n");
+            printf("cat: file is encrypted, password required\n");
+            free(buffer);
             return -1;
         }
+    
 
-        uint8_t input_key = derive_key(password);
-        if (input_key != target->file->key)
+        FileMeta tmp = *fm; // Duplication metedata
+        tmp.content = (char*)buffer;
+        tmp.encrypted_size = len;
+
+        if (file_sys_decrypt_content(&tmp, password) != 0) 
         {
-            printf("cat: wrong password\n");
+            printf("cat: wrong password or corrupted data\n");
+            free(buffer);
             return -1;
         }
 
-        // decrypt temporarily
-        xor_buffer(target->file->content, target->file->size, target->file->key);
+        len = tmp.original_size;  // decrypt the realcontent long
+    
     }
-
-    // Step 3: print content
-    printf("=== Content of %s ===\n", file_name);
-    fwrite(target->file->content, 1, target->file->size, stdout); // stdout : moniter print
+    // Step 4: print content
+    // Print content
+    printf("=== Content of %s === \n", file_name);
+    fwrite(buffer, 1, len, stdout);
     printf("\n=== End of file ===\n");
 
-    // encrypt back
-    if (target->file->Encrypt)
-    {
-        xor_buffer(target->file->content, target->file->size, target->file->key);
-    }
-
+    free(buffer);
     return 0;
 }
 
@@ -882,7 +916,7 @@ void file_sys_state(void)
 {
     Node *current = g_cwd->child;
 
-    printf("File Name \t Type\t Encrypt \n"); // \t -> Horzion syymbol
+    printf("File Name \t Type\t Encrypted \t Original Size \n"); // \t -> Horzion syymbol
 
     while (current != NULL)
     {
@@ -893,10 +927,14 @@ void file_sys_state(void)
         }
         else if (current->type == NODE_FILE && current->file != NULL)
         {
-            printf("%s\tFILE \t Size :%d\t Encrypt %s\n",
+             size_t file_size =  current->file->encrypted 
+                               ? current->file->encrypted_size
+                               : (size_t)current->file->original_size;
+
+            printf("%s\tFILE \t Size :%zu\t Encrypt %s\n",
                    current->name,
-                   current->file->size,
-                   current->file->Encrypt ? "yes" : "no");
+                   file_size,
+                   current->file->encrypted ? "yes" : "no");
         }
 
         current = current->sibling;
@@ -904,44 +942,10 @@ void file_sys_state(void)
 }
 
 
-/*The Safety_Function */
-uint8_t derive_key(const char *password)
-{
-    if (!password || !*password)
-    {
-        return 0x5A; // default key
-    }
-
-    uint8_t key = 0;
-    while (*password)
-    {
-        key ^= (uint8_t)(*password);
-        password++;
-    }
-
-    return key ? key : 0x5A; // avoid key = 0
-}
-
-/*The Encrepty Decrtpty key*/
-void xor_buffer(char *buf, int size, uint8_t key)
-{
-    if (!buf || size <= 0)
-    {
-        return;
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        buf[i] ^= key;
-    }
-}
-
-
-
 /*common funcion*/
-void file_rule_display(const Node* current_dir)
+void file_sys_rule_display(const Node* current_dir)
 {
-    Node* stack[1024] = {0};
+    const Node* stack[1024] = {0};
     int depth = 0;
     
     while (current_dir)
@@ -955,16 +959,16 @@ void file_rule_display(const Node* current_dir)
     {
         printf("%s",stack[i]->name);
 
-        if(i>0 && strcmp(stack[i]->name,"/")!=0)
+        if(i>0 && strcmp(stack[i]->name," / ")!=0)
         {
-            printf("/");
+            printf(" / ");
         }
     }
 
 }
 
 /*The Auto create file common tool*/
-void Com_ensure_dump_dir(void)
+void file_sys_ensure_dump_dir(void)
 {
     #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
         _mkdir(DUMP_DIR); // Fail if the dirtery is create 
@@ -974,11 +978,10 @@ void Com_ensure_dump_dir(void)
 
 }
 
-
 /*Create the recoding the file system tree*/
-void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
+void file_sys_dump_dfs(Node *node_dump, const char *parent_path, FILE *fp)
 {
-    if (!node)
+    if (!node_dump)
     {
         return;
     }
@@ -986,13 +989,13 @@ void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
     char path[2048]; // The store path role
 
     /*put in the file condition */
-    if (node == g_root)
+    if (node_dump == g_root)
     {
         strcpy(path, "/"); // for root
     }
     else // build the abs file role
     {
-        snprintf(path, sizeof(path), "%s/%s", parent_path, node->name);
+        snprintf(path, sizeof(path), "%s/%s", parent_path, node_dump->name);
         // The display file path name
         /*
             The "snprintf" function is out the format file to you specify area
@@ -1004,38 +1007,56 @@ void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
         */
     }
 
-       /*The condtion for */
-       DiskNode header;
+    /* Prepare DiskHeader */
+    DiskNode header;
+    memset(&header, 0, sizeof(header)); // Zero out first
 
-       header.type    = (node->type == NODE_DIR? 0:1); // 0-> Dir 1->File
-       header.encrypt = (node->type == NODE_FILE && 
-                         node->file? node->file->Encrypt : 0);
+    header.type = (node_dump->type == NODE_DIR ? 0 : 1);
+    header.encrypt = (node_dump->type == NODE_FILE && 
+                    node_dump->file ? node_dump->file->encrypted : 0);
+        
+  // Set Size & IV
+    if (node_dump->type == NODE_FILE && node_dump->file) 
+    {
+        // On disk, size is the actual stored bytes (Encrypted Size if encrypted, else Original)
+        header.size = (node_dump->file->encrypted ? node_dump->file->encrypted_size
+                                                  : node_dump->file->original_size);
+        
+        header.original_size = node_dump->file->original_size;
 
-       header.size    = (node->type == NODE_FILE && 
-                         node->file ? node->file->size : 0); 
-       header.path_len = (uint16_t)strlen(path);
+        if (header.encrypt) 
+        {
+            memcpy(header.iv, node_dump->file->iv, 16); // Store IV for decryption
+        }
+    } 
+    else 
+    {
+        header.size = 0;
+        header.original_size = 0;
+    }
 
+    header.path_len = (uint16_t)strlen(path);
        /*written in header sturct in the dump file*/
-       fwrite(&header,sizeof(header),1,fp);
+    fwrite(&header,sizeof(header),1,fp);
 
        /*written path , path len is from your file define
          so the fwrite will accoding the path len writen the real role long */
-       fwrite(path,1,header.path_len,fp);
+    fwrite(path,1,header.path_len,fp);
 
-       if(node->type == NODE_FILE &&
-          node->file && node->file->size >0)
+    if(node_dump->type == NODE_FILE &&
+       node_dump->file && header.size > 0)
        {
-         fwrite(node->file->content,1,node->file->size,fp);
+         fwrite(node_dump->file->content,1, header.size,fp);
        }
 
 
     /*The recursion the relation role */
-    file_sys_dump_dfs(node->child, path, fp);
-    file_sys_dump_dfs(node->sibling, parent_path, fp);
+    file_sys_dump_dfs(node_dump->child, path, fp);
+    file_sys_dump_dfs(node_dump->sibling, parent_path, fp);
 }
 
 /*get tool */
-Node* find_in_dir(Node* dir_path ,const char* name, int want_file)
+Node* file_sys_in_dir(Node* dir_path ,const char* name, int want_file)
 {
     Node* cur = dir_path->child;
     while (cur) 
@@ -1051,7 +1072,7 @@ Node* find_in_dir(Node* dir_path ,const char* name, int want_file)
     return NULL;
 }
 
-Node* Fs_resolve(const char* path, int want_file)
+Node* file_sys_resolve(const char* path, int want_file)
 {
     if (!path ||!*path) 
     {
@@ -1085,7 +1106,7 @@ Node* Fs_resolve(const char* path, int want_file)
         int need_file = last ? want_file : 0;
         printf("token = '%s'\n", token);
 
-        cur = find_in_dir(cur, token, need_file);
+        cur = file_sys_in_dir(cur, token, need_file);
         if (!cur) 
         {
             return NULL; // Fail if don get any element.
@@ -1096,32 +1117,34 @@ Node* Fs_resolve(const char* path, int want_file)
     return cur;
 }
 
-const char* get_basename(const char* path) 
+const char* file_sys_get_basename(const char* path) 
 {
     const char *p = strrchr(path, '/');
     return p? p + 1 : path;
 }
 
-static void fs_traverse(Node *node, FsStats *status)
+static void file_sys_traverse(Node *node, FsStats *status)
 {
     if (!node) return;
 
     status->used_inodes++;
 
-    if (node->type == NODE_FILE && node->file) 
+    if (node->type == NODE_FILE && 
+        node->file) 
     {
-        size_t size   = (size_t)node->file->size;
+        size_t size   =  (node->file->encrypted ? node->file->encrypted_size 
+                                                 : node->file->original_size);
         size_t blocks = (size + status->block_size - 1) / status->block_size;
 
         status->file_blocks += blocks;
         status->used_blocks += blocks;
     }
 
-    fs_traverse(node->child,  status);
-    fs_traverse(node->sibling, status);
+    file_sys_traverse(node->child,  status);
+    file_sys_traverse(node->sibling, status);
 }
 
-void fs_get_stats(FsStats *status)
+void file_sys_get_stats(FsStats *status)
 {
     memset(status, 0, sizeof(*status));
 
@@ -1130,5 +1153,5 @@ void fs_get_stats(FsStats *status)
     status->partition_size = status->block_size * status->total_blocks;
     status->total_inodes  = g_total_inodes;
 
-    fs_traverse(g_root, status);
+    file_sys_traverse(g_root, status);
 }

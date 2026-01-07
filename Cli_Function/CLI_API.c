@@ -1,7 +1,5 @@
 #include "CLi_API.h"
 
-#include "../Common_Function/Common_function.h"
-
 static void command_loop(void);
 
 int cli(void) // 這邊要修 內容
@@ -15,7 +13,7 @@ int cli(void) // 這邊要修 內容
         uint64_t partition_size = 0;
 
         
-        Com_ensure_dump_dir(); // The init dump store file
+        file_sys_ensure_dump_dir(); // The init dump store file
 
         /*Step 1 The basic function choose*/
         printf("\n  ==== WELCOME TO File_system Builder ===== \n");
@@ -108,8 +106,8 @@ static void command_loop(void) // The init_CLI
 
     while (1)
     {
-        printf("TONY_File_system > "); // The specy name modefie
-        file_rule_display(g_cwd);
+        printf("TONY_File_system > : "); // The specy name modefie
+        file_sys_rule_display(g_cwd);
 
         if (!fgets(line, sizeof(line), stdin))
         {
@@ -332,7 +330,7 @@ static void command_loop(void) // The init_CLI
             }
 
             /* The path switch*/
-            const char* out_path = dir_path? dir_path : get_basename(fs_path);
+            const char* out_path = dir_path? dir_path : file_sys_get_basename(fs_path);
             /*The out put file*/
             FILE* fp = fopen(out_path,"wb");
             if(fp==NULL)
@@ -373,7 +371,7 @@ static void command_loop(void) // The init_CLI
         else if (strcmp(cmd, "status")==0)
         {
             FsStats st;
-            fs_get_stats(&st);
+            file_sys_get_stats(&st);
 
             size_t free_blocks =  0;
             if(st.total_blocks > st.used_blocks)
