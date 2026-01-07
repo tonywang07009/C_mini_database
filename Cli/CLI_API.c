@@ -18,9 +18,9 @@ int cli(void) // 這邊要修 內容
         Com_ensure_dump_dir(); // The init dump store file
 
         /*Step 1 The basic function choose*/
-        printf("\n  ==== WELCOME TO TONY_File_system ===== \n");
+        printf("\n  ==== WELCOME TO File_system Builder ===== \n");
         printf("Choose the options please. \n");
-        printf("Options : \n 1) lodas from file\n 2) create new partition in memory \n");
+        printf("Options : \n 1) lodas from file\n 2) create new partition in memory \n 0) exit the builder \n");
         printf("your option : ");
         if (fgets(option_buffer, sizeof(option_buffer), stdin) == NULL)
         {
@@ -37,11 +37,36 @@ int cli(void) // 這邊要修 內容
         switch (option)
 
         {
-        // case 1: // writen the autoload dump and then into file
-                
-        //     // if 
 
-        //     // break;
+        case 0:
+
+            return 1;
+            break;
+
+        case 1: // writen the autoload dump and then into file
+            printf("Choose the dump file name to load :");
+            
+            char name_only[128];
+            if (!fgets(name_only, sizeof(name_only), stdin)) 
+            {
+                printf("No input\n");
+                continue;
+            }
+
+            name_only[strcspn(name_only, "\n")] = '\0';
+            char dump_path[256];
+            /*The array size catch*/
+            snprintf(dump_path, sizeof(dump_path),"%s/%s", DUMP_DIR, name_only);
+            // "%s/%s" == "/"
+
+            file_sys_init(); // The empty root.
+            if(file_sys_load(dump_path)!=0)
+            {
+                printf("load fail \n");
+                break;   
+            }
+            command_loop ();
+            break; 
 
         case 2: /*Step 2 Specify the partition size */
 
@@ -70,7 +95,6 @@ int cli(void) // 這邊要修 內容
 
             printf("Unknow option !! \n rechoose again please \n");
             continue;
-
             break;
         }
     }
@@ -86,7 +110,7 @@ static void command_loop(void) // The init_CLI
     {
         printf("TONY_File_system > "); // The specy name modefie
         file_rule_display(g_cwd);
-        
+
         if (!fgets(line, sizeof(line), stdin))
         {
             printf("Input error.\n");
@@ -112,7 +136,7 @@ static void command_loop(void) // The init_CLI
             FILE* fp = fopen(LAST_DUMP,"w");
             if(fp != NULL)
             {
-                file_dump_dfs(g_root,"",fp);
+                file_sys_dump_dfs(g_root,"",fp);
                 fclose(fp);
                 printf("Auto store to %s \n",LAST_DUMP);
             }
@@ -214,7 +238,7 @@ static void command_loop(void) // The init_CLI
                     continue;
             }
             
-            file_dump_dfs(g_root,"",fp);
+            file_sys_dump_dfs(g_root,"",fp);
             fclose(fp); // close file
         }
 
@@ -225,46 +249,95 @@ static void command_loop(void) // The init_CLI
                 printf("usage: put <filename> <dis_path> \n");
                 continue;
             }
-            const char* file_path = arg;      // For user specify
-            char *arg2 = strtok(NULL, " ");  // For user specify
-            char *arg3 = strtok(NULL, " ");  // For user specify
+            const char* file_path = arg;      // OS real file : For user specify 
+            char *arg2 = strtok(NULL, " ");   // Target dir
+           
+            /* Get the basename from file_path*/
+            const char* basename = strrchr(file_path,'/');
 
-            /*
-                arg = 
-                fs_file = your file name 
-                arg 3 = your 
-            */
-            const char* dis_path = arg2? arg2:file_path;
+            /*spcal design*/
+            #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
 
-            if (file_sys_put(arg, dis_path) != 0)
+                const char *basename2 = strrchr(file_path, '\\');
+                if (!basename || (basename2 && basename2 > basename))
+                {
+                    basename = basename2;
+                }
+
+            #endif
+                if(basename)
+                {
+                    basename++;
+                }
+                else
+                {
+                    basename = file_path;
+                }
+
+            /*The specy dir handle*/
+            Node *saved_cwd = g_cwd;
+            
+            if(arg2)
+            {
+                if(file_sys_cd(arg2)!=0)
+                {
+
+                    printf("put: no such  directory: %s\n", arg2);
+                    g_cwd = saved_cwd;
+                    continue;
+
+                }
+            }
+            
+            /*The real put in*/
+            if (file_sys_put(file_path, basename) != 0)
             {
                 printf("put: failed\n");
             }
+            
+            /*Repoint orign postion*/
+            g_cwd = saved_cwd;
         }
 
         else if (strcmp(cmd, "get") == 0)
         {
             uint8_t* get_content = NULL;
             size_t file_size = 0 ;
-            char *password  = strtok(NULL, " "); // 第 3 個參數
 
             if (arg == NULL) 
             {
-                printf("usage: get <fs_file> <password>\n");
+                printf("usage: get <fs_file> [host_path] <password>\n");
                 continue;
             }
+            
+            /*The parameter get*/
+            char *dir_path =  strtok(NULL, " ");
+            char *password  = strtok(NULL, " "); // The number three arg
 
-            if (file_sys_get(arg,password,&get_content,&file_size ) != 0)
+            if(dir_path && !password)
+            {
+                password = dir_path; // default setting
+                dir_path = NULL;
+            }
+
+            const char *fs_path = arg; /*The complite role*/
+            
+            /* Token splite get the file name rd*/
+
+
+            if (file_sys_get(fs_path,password,&get_content,&file_size ) != 0)
             {
                 printf("get: failed\n");
                 continue;
             }
 
+            /* The path switch*/
+            const char* out_path = dir_path? dir_path : get_basename(fs_path);
             /*The out put file*/
-            FILE* fp = fopen(arg,"wb");
+            FILE* fp = fopen(out_path,"wb");
             if(fp==NULL)
             {
-                printf("get: cannot write to %s\n", arg);
+                printf("get: cannot write to %s\n", out_path);
                 free(get_content);
                 continue;
             }
@@ -278,7 +351,7 @@ static void command_loop(void) // The init_CLI
                 continue;
             }
 
-            printf("get: success, written %zu bytes to %s\n", written, arg);
+            printf("get: success, written %zu bytes to %s\n", written, out_path);
             free(get_content);
 
         }
@@ -311,7 +384,7 @@ static void command_loop(void) // The init_CLI
             printf("touch <name>                    - create empty file\n");
             printf("rm <name>                       - remove file\n");
             printf("put <filename> <dis_path>  - upload & encrypt file\n");
-            printf("get <fs_file>  <password>  - decrypt & download file\n");
+            printf("get <fs_file> [host_path] <password>  - decrypt & download file\n");
             printf("cat <fs_file> <pw>              - decrypt & show content\n");
             printf("status                           - display now directory all include file\n");
             printf("dump <file>                     - dump file system\n");
@@ -334,7 +407,7 @@ void cli_expection_handle(int cli_result)
         char choose_buf[256] = {0};
         int broken_choose = 0;
         printf("Your cli is broken \n");
-        printf("Please choose next step 1)\n call again cli 2) end \n");
+        printf("Please choose next step \n 1) call again cli 2) end \n");
         printf("your choose : ");
         if (!fgets(choose_buf, sizeof(choose_buf), stdin))
         {

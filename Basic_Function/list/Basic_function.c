@@ -312,9 +312,9 @@ int file_sys_touch(const char *name)
 }
 
 /*Create the recoding the file system tree*/
-void file_dump_dfs(Node *node, const char *parent_path, FILE *fp)
+void file_sys_dump_dfs(Node *node, const char *parent_path, FILE *fp)
 {
-    if (node == NULL)
+    if (!node)
     {
         return;
     }
@@ -341,57 +341,68 @@ void file_dump_dfs(Node *node, const char *parent_path, FILE *fp)
     }
 
     /*The condtion for */
-    if (node->type == NODE_DIR)
-    {
-        fprintf(fp, "D %s \n", path);
-        /*
-            The "fprintf" function is written the formate content to your FILE* file
-            -----
-            fp : Is your pointer file
-            %s : The data formate
-            path : you want to written content
+       DiskNode header;
 
-        */
-    }
+       header.type    = (node->type == NODE_DIR? 0:1); // 0-> Dir 1->File
+       header.encrypt = (node->type == NODE_FILE && 
+                         node->file? node->file->Encrypt : 0);
 
-    else if (node->type == NODE_FILE)
-    {
-        int size = (node->file ? node->file->size : 0);        // The size change
-        fprintf(fp, "F %s the file size : %d \n", path, size); // file print
-    }
+       header.size    = (node->type == NODE_FILE && 
+                         node->file ? node->file->size : 0); 
+       header.path_len = (uint16_t)strlen(path);
+
+       /*written in header sturct in the dump file*/
+       fwrite(&header,sizeof(header),1,fp);
+
+       /*written path , path len is from your file define
+         so the fwrite will accoding the path len writen the real role long */
+       fwrite(path,1,header.path_len,fp);
+
+       if(node->type == NODE_FILE &&
+          node->file && node->file->size >0)
+       {
+         fwrite(node->file->content,1,node->file->size,fp);
+       }
+
+
     /*The recursion the relation role */
-    file_dump_dfs(node->child, path, fp);
-    file_dump_dfs(node->sibling, parent_path, fp);
+    file_sys_dump_dfs(node->child, path, fp);
+    file_sys_dump_dfs(node->sibling, parent_path, fp);
 }
 
 /*The recover file system content*/
 int file_sys_load(const char *dump_file)
 {
 
-    FILE *fp = fopen(dump_file, "r"); // The reading file content
+    FILE *fp = fopen(dump_file, "rb"); // The reading file content
     if (fp == NULL)
     {
         printf("Sys load : miss dump file %s\n", dump_file);
         return -1;
     }
-
-    char line[2048]; // The duplicaton into the line
-
-    while (fgets(line, sizeof(line), fp) != NULL)
+    DiskNode header;
+    while (fread(&header,sizeof(header),1,fp)==1)
+    // envery time only reading the one element
+    // sizeof(header) is the element size
     {
-        char type = '0'; // The type secify
-        char path[1024] = {0};
-
-        /* sscanf to path buffer inside
-           used the indivual space to hadle the role token cut
-        */
-        if (sscanf(line, " %c %1023s", &type, path) != 2)
+        char path[2048] = {0};
+        if(header.path_len >=sizeof(path))
         {
-            continue;
+            printf("load error: The Disknode path_len over path buffer\n");
+            return -1;
         }
 
-        /*The dirteory role scanf algthrom*/
-        if (type == 'D')
+        if(fread(path,1,header.path_len,fp)!=header.path_len)
+        // The 1 mean is reading one time reading all path_len element amount
+        // The size is header.path_len byte
+        {
+            printf("load error: The Disknode path_len unequal the pathbufferlen\n");
+            return -1;
+        }
+        
+        path[header.path_len] = '\0'; //The add end symbol
+
+        if (header.type ==0)
         {
             if (strcmp(path, "/") == 0)
             {
@@ -403,7 +414,8 @@ int file_sys_load(const char *dump_file)
             strncpy(tmp, path, sizeof(tmp) - 1);
             tmp[sizeof(tmp) - 1] = '\0';
 
-            /*The '/' inspection handle*/
+            /*The '/' inspection handle 
+              root handle*/
             char *tmpPtr = tmp;
             if (*tmpPtr == '/')
             {
@@ -462,9 +474,9 @@ int file_sys_load(const char *dump_file)
             }
 
             g_cwd = saved_cwd; // repointer to original pointer dirteory
+            
         }
-        /*handle the file node */
-        else if (type == 'F')
+        else
         {
             if (strcmp(path, "/") == 0)
             {
@@ -472,9 +484,10 @@ int file_sys_load(const char *dump_file)
             }
 
             char tmp[1024];
+
             strncpy(tmp, path, sizeof(tmp) - 1);
             tmp[sizeof(tmp) - 1] = '\0';
-
+            
             char *tmpPtr = tmp;
             if (*tmpPtr == '/')
             {
@@ -484,12 +497,10 @@ int file_sys_load(const char *dump_file)
             Node *saved_cwd = g_cwd;
             g_cwd = g_root;
 
-            char *last_slash = strrchr(tmpPtr, '/');
+            char *last_slash = strrchr(tmpPtr, '/'); 
             /*find the last time appear sepcy char.
               The search directory is right to left
-
               ---
-
               tmpPtr is pointer to mine space
               '/' is mine target char
 
@@ -498,11 +509,11 @@ int file_sys_load(const char *dump_file)
 
             if (last_slash!=NULL)
             {
-                
                 *last_slash = '\0';        // find the target add the endsymbol
                 filename = last_slash + 1; // To pointer the first file name.
             }
 
+            /*handle file node*/
             else
             {
                 filename = tmpPtr; // The tmpPtr repointer to origin tmp array
@@ -549,15 +560,68 @@ int file_sys_load(const char *dump_file)
                         found = current;
 
                     }
-
                     // Prepare the next token cut
                     g_cwd = found;
                     token = strtok(NULL, "/");
                 }
             }
-
             /*create the dumpfile*/
-            file_sys_touch(filename);
+            if(file_sys_touch(filename)!=0)
+            {
+                printf("load: touch fail on %s \n" ,filename);
+                g_cwd = saved_cwd;
+                return -1;
+            }
+
+            Node* cur = g_cwd->child;
+            Node* file_node = NULL;
+
+            /*The find saem filename*/
+            while (cur)
+            {
+                if (cur->type == NODE_FILE 
+                    && strcmp(cur->name, filename) == 0)
+                {
+                    file_node = cur;
+                    break;
+                }
+                cur = cur->sibling;
+            }
+
+            if (!file_node || !file_node->file) 
+            {
+                printf("load: internal error, file node not found\n");
+                g_cwd = saved_cwd;
+                return -1;
+            }
+
+            /* Allocate　and read file content */
+            if(header.size > 0)
+            {
+                file_node->file->content = (char*)malloc(header.size);
+                if(!file_node->file->content)
+                {
+                    printf("load : content malloc fail \n");
+                    g_cwd = saved_cwd;
+
+                    return -1;
+                }
+
+                if (fread(file_node->file->content, 1, header.size, fp) != header.size) 
+                {
+                    printf("load: read file content fail\n");
+                    free(file_node->file->content);
+                    file_node->file->content = NULL;
+                    g_cwd = saved_cwd;
+
+                    return -1;
+                }
+
+            }
+
+            /*into the data to file space*/
+            file_node->file->size = header.size;
+            file_node->file->Encrypt = header.encrypt;
             g_cwd = saved_cwd;
         }
     }
@@ -565,6 +629,8 @@ int file_sys_load(const char *dump_file)
     fclose(fp);
     return 0;
 }
+    
+    
 
 /*The Product the key*/
 uint8_t derive_key(const char *password)
@@ -765,22 +831,11 @@ int file_sys_get(const char *file_name, const char *password , uint8_t** out_buf
     }
 
     // Step 1: find file node
-    Node *current = g_cwd->child;
-    Node *target = NULL;
-
-    while (current != NULL)
-    {
-        if (current->type == NODE_FILE && strcmp(current->name, file_name) == 0)
-        {
-            target = current;
-            break;
-        }
-        current = current->sibling;
-    }
+    Node *target = Fs_resolve(file_name,1);
 
     if(!target)
     {
-        printf("get: The dir is empty \n");
+        printf("get: Path not found \n");
         return -1;
     }
 
@@ -955,4 +1010,82 @@ void file_rule_display(const Node* current_dir)
         }
     }
 
+}
+
+/*The Auto create file*/
+void Com_ensure_dump_dir(void)
+{
+    #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
+        _mkdir(DUMP_DIR); // Fail if the dirtery is create 
+    #else
+         mkdir(DUMP_DIR,0755); // Return -1 if the dirtery is create 
+    #endif
+}
+
+/*get tool */
+Node* find_in_dir(Node* dir_path ,const char* name, int want_file)
+{
+    Node* cur = dir_path->child;
+    while (cur) 
+    {
+        if (strcmp(cur->name, name) == 0 &&
+            ((want_file && cur->type == NODE_FILE) ||
+            (!want_file && cur->type == NODE_DIR))) 
+            {
+                return cur;
+            }
+        cur = cur->sibling;
+    }
+    return NULL;
+}
+
+Node* Fs_resolve(const char* path, int want_file)
+{
+    if (!path ||!*path) 
+    {
+        return NULL;
+    }
+
+    // 1. from the root dir
+    Node* cur = NULL;
+    char buf[512];
+    // 2. dupliaction path
+    if (path[0] == '/') 
+    {
+        cur = g_root; // Absolute path
+    } 
+    else 
+    {
+        cur = g_cwd; // Relative path (YOU NEED TO DEFINE THIS GLOBAL)
+    }
+
+    strncpy(buf, path, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    // 3. splite "/"
+    char* token = strtok(buf, "/");
+    while (token) 
+    {
+        /* The find token algthrom */
+        char* next = strtok(NULL, "/"); // watch the next arg is appaer? 
+        int last = (next == NULL);
+        /* The file get cheack*/
+        int need_file = last ? want_file : 0;
+        printf("token = '%s'\n", token);
+
+        cur = find_in_dir(cur, token, need_file);
+        if (!cur) 
+        {
+            return NULL; // Fail if don get any element.
+        }
+        token = next;
+
+    }
+    return cur;
+}
+
+const char* get_basename(const char* path) 
+{
+    const char *p = strrchr(path, '/');
+    return p ? p + 1 : path;
 }

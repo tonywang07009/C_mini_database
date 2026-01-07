@@ -1,5 +1,4 @@
 #include "Common_Function.h"
-#include "../Basic_Function/list/Basic_function.h"
 
 /* The recursion del function*/
 // void free_subtree(Node *node) 
@@ -23,13 +22,3 @@
 //     free(node);
 // }
 
-/*The Auto create file*/
-void Com_ensure_dump_dir(void)
-{
-    #if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
-        _mkdir(DUMP_DIR); // Fail if the dirtery is create 
-    #else
-         mkdir(DUMP_DIR,0755); // Return -1 if the dirtery is create 
-    #endif
-
-}
