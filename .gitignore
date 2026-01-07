@@ -1,6 +1,6 @@
 # The addtional file
-.o
-.exe
-.dump
-.txt
+*.o
+*.exe
+*.dump
+*.txt
 
