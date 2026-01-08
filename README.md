@@ -1,3 +1,5 @@
+![cover](/C.jpg "Magic Gardens")
+
 # C_Simple_Mini_Database
 
 ---------
