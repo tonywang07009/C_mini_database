@@ -7,13 +7,13 @@ int cli(void)
     file_sys_ensure_dump_dir(); // The init dump store file
     while (1)
     {
-        char name_only[128];
+        char name_only[128];     // specfy the dump file name
         char option_buffer[256]; // The max you car read char
         int dump_choose = 0;
         int option = 0;
 
-        char partition_option_buffer[256];
-        uint64_t partition_size = 0;
+        char partition_option_buffer[256]; // specfy your db space capacity
+        uint64_t partition_size = 0; 
 
         /*Step 1 The basic function choose*/
         printf("\n  ==== WELCOME TO File_system Builder ===== \n");
@@ -94,8 +94,8 @@ int cli(void)
                 printf("Input error.\n");
                 continue;
             }
-            /*RD*/
-            if (sscanf(partition_option_buffer, "%" SCNu64, &partition_size) != 1)
+            
+            if (sscanf(partition_option_buffer, "%" SCNu64, &partition_size) != 1) // Unsign long long 
             {
                 printf("Invalid input.\n");
                 printf("ReSpecify again please\n");
@@ -136,7 +136,7 @@ static void command_loop(void) // The init_CLI
         }
 
         // Del \n
-        line[strcspn(line, "\n")] = '\0'; // del '\n';
+        line[strcspn(line, "\n")] = '\0'; // replace the \n to \0
 
         // jump the space
         if (line[0] == '\0')
@@ -145,8 +145,8 @@ static void command_loop(void) // The init_CLI
         }
 
         // The reading strtok // RD*
-        char *cmd = strtok(line, " "); // line find the first
-        char *arg = strtok(NULL, " "); // arg RD
+        char *cmd = strtok(line, " "); // specfy the function
+        char *arg = strtok(NULL, " "); // specfy the function additional argermant (like help "-s") 
 
         /* The auto restore function*/
         if (strcmp(cmd, "exit") == 0)
@@ -483,16 +483,18 @@ void cli_expection_handle(int cli_result)
     }
 }
 
+/*The display dump flies*/
 void cli_list_dump_files(void)
 {
     printf("=== Available dump file in %s === \n", DUMP_DIR);
 
     #if defined(WIN32) || defined(_WIN32) || defined(_WIN64) // windows
-        WIN32_FIND_DATAA ffd;
-        char pattern[MAX_PATH];
+
+        WIN32_FIND_DATAA ffd; //define the find data struct
+        char pattern[MAX_PATH]; // The windows path max file
         snprintf(pattern, sizeof(pattern), "%s\\*.dump", DUMP_DIR);
 
-        HANDLE hFind = FindFirstFileA(pattern, &ffd);
+        HANDLE hFind = FindFirstFileA(pattern, &ffd); // auto find the dump file
         if (hFind == INVALID_HANDLE_VALUE) 
         {
             printf("(no dump files)\n");

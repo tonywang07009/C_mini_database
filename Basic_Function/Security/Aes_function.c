@@ -46,7 +46,7 @@ void file_sys_generate_iv(uint8_t iv[16])
 
 }
 
-/**/
+
 int file_sys_encrypt_content(FileMeta* file_meta, const char *password)
 {
     /* The unexpect handle*/

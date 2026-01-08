@@ -1117,12 +1117,14 @@ Node* file_sys_resolve(const char* path, int want_file)
     return cur;
 }
 
+/*get the file name*/
 const char* file_sys_get_basename(const char* path) 
 {
-    const char *p = strrchr(path, '/');
+    const char *p = strrchr(path, '/'); //search '/'
     return p? p + 1 : path;
 }
 
+/*Display the system now status (space)*/
 static void file_sys_traverse(Node *node, FsStats *status)
 {
     if (!node) return;
@@ -1144,6 +1146,7 @@ static void file_sys_traverse(Node *node, FsStats *status)
     file_sys_traverse(node->sibling, status);
 }
 
+/*Display the system now status (all)*/
 void file_sys_get_stats(FsStats *status)
 {
     memset(status, 0, sizeof(*status));
