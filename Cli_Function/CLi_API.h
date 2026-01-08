@@ -11,8 +11,17 @@
 
 #include "../Basic_Function/Basic/Basic_function.h"
 
+/*for dump dir table*/
+#if defined(WIN32) || defined(_WIN32) || defined(_WIN64)
+    #include<windows.h>
+#else
+   #include <dirent.h>  
+#endif
+
+
+
 /*function list*/
 int cli(void);
 void cli_expection_handle(int cli_result);
-
+void cli_list_dump_files(void);
 #endif

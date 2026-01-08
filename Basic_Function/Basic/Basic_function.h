@@ -15,13 +15,15 @@
     // #define PATH_SEP    '\\'
     /* Autostore dir setting */
     #define DUMP_DIR   "Dump_store"
+    #define DUMP_FIR   "last_dump.dump"
     #define LAST_DUMP  "Dump_store\\last_dump.dump"
 #else
     #include <sys/stat.h>
     #include <sys/types.h>
     // #define PATH_SEP    '/'
     #define DUMP_DIR   "Dump_store"
-    #define LAST_DUMP  "Dump_store/last_dump.txt"
+    #define DUMP_FIR   "last_dump.dump"
+    #define LAST_DUMP  "Dump_store/last_dump.dump"
 #endif
 
 /* 

@@ -4,6 +4,8 @@
 #include <string.h> 
 #include <time.h> // for ramdom seed
 #include <stdlib.h>
+
+/*The create random key */
 void file_sys_derive_aes_key(const char* password, uint8_t out_key[32])
 {
     size_t len = strlen(password); // The calculate
@@ -22,6 +24,7 @@ void file_sys_derive_aes_key(const char* password, uint8_t out_key[32])
 
 }
 
+/*generate iv key*/
 void file_sys_generate_iv(uint8_t iv[16])
 {
     static int seeded = 0; // The golobal key
@@ -43,6 +46,7 @@ void file_sys_generate_iv(uint8_t iv[16])
 
 }
 
+/**/
 int file_sys_encrypt_content(FileMeta* file_meta, const char *password)
 {
     /* The unexpect handle*/

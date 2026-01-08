@@ -2,13 +2,14 @@
 
 static void command_loop(void);
 
-int cli(void) // 這邊要修 內容
+int cli(void)
 {
     file_sys_ensure_dump_dir(); // The init dump store file
     while (1)
     {
         char name_only[128];
         char option_buffer[256]; // The max you car read char
+        int dump_choose = 0;
         int option = 0;
 
         char partition_option_buffer[256];
@@ -24,6 +25,7 @@ int cli(void) // 這邊要修 內容
             printf("your input is fail \n");
             return -1;
         }
+        printf("\n");
 
         if (sscanf(option_buffer, "%d", &option) != 1)
         {
@@ -40,32 +42,51 @@ int cli(void) // 這邊要修 內容
             return 1;
             break;
 
-        case 1: // writen the autoload dump and then into file
-            printf("Choose the dump file name to load :");
+        case 1: /*Dump load*/
+            cli_list_dump_files(); // The display now dump
+            printf("\n");
+            printf(" 1) Choose the dump file name to load : \n 2) auto load last dump :\n");
+            printf("your choose : ");
+            scanf("%d",&dump_choose);
+
+            if(dump_choose != 0)
+            {
+                if (!fgets(name_only, sizeof(name_only), stdin)) 
+                {
+                    printf("No input\n");
+                    continue;
+                }
+                
+                name_only[strcspn(name_only, "\n")] = '\0';
+                char dump_path[256];
+                /*The array size catch*/
+                if(dump_choose == 1)
+                {
+                    snprintf(dump_path, sizeof(dump_path),"%s/%s", DUMP_DIR, name_only);
+                        // "%s/%s" == "/"
+                }
+                else if(dump_choose == 2)
+                {
+                    snprintf(dump_path, sizeof(dump_path),"%s/%s", DUMP_DIR, DUMP_FIR);
+                }
+                else
+                {
+                    printf("Unknow option \n");
+                    continue;
+                }
+                file_sys_init(); // The empty root.
+
+                if(file_sys_load(dump_path)!=0)
+                {
+                    printf("load fail \n");
+                    break;   
+                }
+                command_loop ();
+            }
             
-           
-            if (!fgets(name_only, sizeof(name_only), stdin)) 
-            {
-                printf("No input\n");
-                continue;
-            }
-
-            name_only[strcspn(name_only, "\n")] = '\0';
-            char dump_path[256];
-            /*The array size catch*/
-            snprintf(dump_path, sizeof(dump_path),"%s/%s", DUMP_DIR, name_only);
-            // "%s/%s" == "/"
-
-            file_sys_init(); // The empty root.
-            if(file_sys_load(dump_path)!=0)
-            {
-                printf("load fail \n");
-                break;   
-            }
-            command_loop ();
             break; 
-
-        case 2: /*Step 2 Specify the partition size */
+        
+        case 2: /*Specify the partition size */
 
             printf("\n Input size of a new partition : ");
             if (!fgets(partition_option_buffer, sizeof(partition_option_buffer), stdin)) // duplicatipn The
@@ -460,4 +481,56 @@ void cli_expection_handle(int cli_result)
             printf("BYE \n");
         }
     }
+}
+
+void cli_list_dump_files(void)
+{
+    printf("=== Available dump file in %s === \n", DUMP_DIR);
+
+    #if defined(WIN32) || defined(_WIN32) || defined(_WIN64) // windows
+        WIN32_FIND_DATAA ffd;
+        char pattern[MAX_PATH];
+        snprintf(pattern, sizeof(pattern), "%s\\*.dump", DUMP_DIR);
+
+        HANDLE hFind = FindFirstFileA(pattern, &ffd);
+        if (hFind == INVALID_HANDLE_VALUE) 
+        {
+            printf("(no dump files)\n");
+            return;
+         }
+         do
+         {
+            printf("%s\n", ffd.cFileName);
+         }
+         while (FindNextFile(hFind,&ffd));
+         
+         FindClose(hFind);
+         
+           
+    #else // linux / Unix
+         
+         DIR* dir;
+         struct dirent* ent;
+
+         dir = opendir(DUMP_DIR);
+         if(!dir)
+         {
+            printf("(cannot open %s)\n" , DUMP_DIR);
+            return;
+         }
+         
+         while ((ent = readdir(dir))!=NULL)
+         {
+            const char* name = ent->d_name;
+            size_t len = strlen(name);
+            
+            if(len > 5 && 
+               strcmp(name + len -5, ".dump") ==0)
+            {
+                printf("%s\n", name);
+            }
+         }
+         closedir(dir);
+    #endif
+
 }

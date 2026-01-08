@@ -1,4 +1,3 @@
-![Cover ](./C.jpg "Magic Gardens")
 # Command Line Interface (CLI) Reference
 
 ----

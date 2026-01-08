@@ -1,4 +1,3 @@
-// ...existing code...
 # Security Module (AES Functions)
 
 ----
